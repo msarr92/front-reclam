@@ -1,0 +1,1101 @@
+<div class="rapport-container">
+
+  <!-- ===== EN-TÊTE ===== -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">
+        <i class="fas fa-file-alt title-icon"></i>
+        Rapports
+      </h1>
+      <p class="page-subtitle">
+        <i class="fas fa-clipboard-list"></i>
+        Tous les rapports de l'application
+      </p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-export" (click)="exporterCSV()">
+        <i class="fas fa-file-csv"></i> CSV
+      </button>
+      <button class="btn-print" (click)="printPage()">
+        <i class="fas fa-print"></i> Imprimer
+      </button>
+      <button class="btn-secondary" (click)="goBackToTickets()">
+        <i class="fas fa-arrow-left"></i> Retour
+      </button>
+      <button class="btn-primary" (click)="refreshData()" [disabled]="isLoading()">
+        <i class="fas" [class.fa-sync-alt]="!isLoading()" [class.fa-spinner]="isLoading()" [class.fa-spin]="isLoading()"></i>
+        {{ isLoading() ? 'Chargement...' : 'Actualiser' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== FILTRES ===== -->
+  <div class="filters-section">
+    <div class="filters-row">
+      <div class="filter-group">
+        <label><i class="fas fa-calendar-alt"></i> Date début</label>
+        <input type="date" [(ngModel)]="filterDateDebut" (change)="applyFilters()" />
+      </div>
+      <div class="filter-group">
+        <label><i class="fas fa-calendar-check"></i> Date fin</label>
+        <input type="date" [(ngModel)]="filterDateFin" (change)="applyFilters()" />
+      </div>
+      <div class="filter-group">
+        <label><i class="fas fa-circle"></i> Statut</label>
+        <select [(ngModel)]="filterStatut" (change)="applyFilters()">
+          <option *ngFor="let s of statuts" [value]="s.value">{{ s.label }}</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label><i class="fas fa-flag"></i> Priorité</label>
+        <select [(ngModel)]="filterPriorite" (change)="applyFilters()">
+          <option *ngFor="let p of priorites" [value]="p.value">{{ p.label }}</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label><i class="fas fa-file-export"></i> Format</label>
+        <select [(ngModel)]="filterFormat">
+          <option *ngFor="let f of formats" [value]="f.value">{{ f.label }}</option>
+        </select>
+      </div>
+      <div class="filter-group filter-actions-group">
+        <label>&nbsp;</label>
+        <button class="btn-mes-tickets" (click)="resetFilters()">
+          <i class="fas fa-eraser"></i> Réinitialiser
+        </button>
+      </div>
+    </div>
+    <div class="filter-stats">
+      <span class="results-count">
+        <i class="fas fa-clock"></i>
+        Période : <strong>{{ formatDateFull(filterDateDebut()) }}</strong> au <strong>{{ formatDateFull(filterDateFin()) }}</strong>
+      </span>
+    </div>
+  </div>
+
+  <!-- ===== LOADING ===== -->
+  <div class="loading-state" *ngIf="isLoading()">
+    <div class="spinner"></div>
+    <p>Chargement des rapports...</p>
+  </div>
+
+  <ng-container *ngIf="!isLoading()">
+
+    <!-- ===== NAVIGATION SECTIONS ===== -->
+    <div class="sections-nav">
+      <button
+        *ngFor="let s of sections"
+        class="section-nav-btn"
+        [class.active]="activeSection() === s.value"
+        (click)="setSection(s.value)"
+      >
+        <i class="fas" [ngClass]="s.icon"></i>
+        <span>{{ s.label }}</span>
+      </button>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : SYNTHÈSE GLOBALE                        -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'synthese'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-ticket-alt"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ rapportGlobal()?.total_tickets || 0 }}</h3>
+            <p>Total tickets</p>
+            <span class="trend">{{ rapportGlobal()?.tickets_actifs || 0 }} actifs</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(52, 152, 219, 0.08); color: #3498db">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ rapportGlobal()?.total_utilisateurs || 0 }}</h3>
+            <p>Utilisateurs</p>
+            <span class="trend">{{ utilisateurs()?.actifs || 0 }} actifs</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-building"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ rapportGlobal()?.total_entites || 0 }}</h3>
+            <p>Entités</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-cubes"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ rapportGlobal()?.total_elements || 0 }}</h3>
+            <p>Éléments</p>
+            <span class="trend negative">{{ elementsDefectueux().length }} défectueux</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+            <i class="fas fa-bullhorn"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ totalReclamations() }}</h3>
+            <p>Réclamations</p>
+            <span class="trend negative">SLA dépassé</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(155, 89, 182, 0.08); color: #9b59b6">
+            <i class="fas fa-exclamation-circle"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ totalTicketsEnRetard() }}</h3>
+            <p>Tickets en retard</p>
+            <span class="trend negative">À traiter</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Synthèse détaillée -->
+      <div class="chart-card" *ngIf="synthese()">
+        <div class="chart-header">
+          <h3><i class="fas fa-file-alt"></i> Synthèse détaillée</h3>
+          <button class="btn-export" (click)="exporterRapportSection('synthese')" [disabled]="isLoadingExport()">
+            <i class="fas" [class.fa-download]="!isLoadingExport()" [class.fa-spinner]="isLoadingExport()" [class.fa-spin]="isLoadingExport()"></i>
+            Exporter
+          </button>
+        </div>
+        <div class="chart-body">
+          <div class="synthese-grid">
+            <div class="synthese-item">
+              <span class="synthese-label">Taux de résolution</span>
+              <span class="synthese-value">{{ formatPourcentage(synthese()?.taux_resolution || 0) }}</span>
+              <div class="repartition-bar">
+                <div class="repartition-progress" [style.width.%]="synthese()?.taux_resolution || 0" style="background: linear-gradient(90deg, #28a745, #48bb78)"></div>
+              </div>
+            </div>
+            <div class="synthese-item">
+              <span class="synthese-label">Respect SLA</span>
+              <span class="synthese-value">{{ formatPourcentage(synthese()?.taux_respect_sla || 0) }}</span>
+              <div class="repartition-bar">
+                <div class="repartition-progress" [style.width.%]="synthese()?.taux_respect_sla || 0" style="background: linear-gradient(90deg, #0066b3, #3498db)"></div>
+              </div>
+            </div>
+            <div class="synthese-item">
+              <span class="synthese-label">Délai moyen résolution</span>
+              <span class="synthese-value">{{ formatDuree(synthese()?.delai_moyen || 0) }}</span>
+            </div>
+            <div class="synthese-item">
+              <span class="synthese-label">Charge de travail</span>
+              <span class="synthese-value">{{ synthese()?.charge_travail || 0 }} tickets</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : TICKETS                                 -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'tickets'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-ticket-alt"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ tickets()?.total || 0 }}</h3>
+            <p>Total tickets</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-folder-open"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ tickets()?.ouverts || 0 }}</h3>
+            <p>Ouverts</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ tickets()?.resolus || 0 }}</h3>
+            <p>Résolus</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+            <i class="fas fa-bullhorn"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ totalReclamations() }}</h3>
+            <p>Réclamations</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-circle"></i> Par statut</h3>
+            <button class="btn-export" (click)="exporterRapportSection('tickets-par-statut')">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="ticketsParStatut().length > 0">
+              <div class="repartition-item" *ngFor="let i of ticketsParStatut(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-flag"></i> Par priorité</h3>
+            <button class="btn-export" (click)="exporterRapportSection('tickets-par-priorite')">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="ticketsParPriorite().length > 0">
+              <div class="repartition-item" *ngFor="let i of ticketsParPriorite(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-folder"></i> Par catégorie</h3>
+            <button class="btn-export" (click)="exporterRapportSection('tickets-par-categorie')">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="ticketsParCategorie().length > 0">
+              <div class="repartition-item" *ngFor="let i of ticketsParCategorie(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-building"></i> Par entité</h3>
+            <button class="btn-export" (click)="exporterRapportSection('tickets-par-entite')">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="ticketsParEntite().length > 0">
+              <div class="repartition-item" *ngFor="let i of ticketsParEntite(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top agents -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3><i class="fas fa-user-tie"></i> Rapport par agent</h3>
+          <button class="btn-export" (click)="exporterRapportSection('tickets-par-agent')">
+            <i class="fas fa-download"></i>
+          </button>
+        </div>
+        <div class="chart-body">
+          <div class="table-container" *ngIf="ticketsParAgent().length > 0; else noAgents">
+            <table class="tickets-table">
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Tickets traités</th>
+                  <th>Résolus</th>
+                  <th>Délai moyen</th>
+                  <th>Taux de résolution</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let a of ticketsParAgent()">
+                  <td><strong>{{ getFullName(a) }}</strong></td>
+                  <td>{{ a.tickets_traites || 0 }}</td>
+                  <td>{{ a.tickets_resolus || 0 }}</td>
+                  <td>{{ formatDuree(a.delai_moyen || 0) }}</td>
+                  <td>
+                    <span class="trend positive">{{ formatPourcentage(a.taux_resolution || 0) }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #noAgents>
+            <div class="no-chart-data"><i class="fas fa-user-tie"></i><p>Aucune donnée agent</p></div>
+          </ng-template>
+        </div>
+      </div>
+
+      <!-- Tickets en retard -->
+      <div class="chart-card" *ngIf="ticketsEnRetard().length > 0">
+        <div class="chart-header">
+          <h3><i class="fas fa-exclamation-circle"></i> Tickets en retard ({{ ticketsEnRetard().length }})</h3>
+          <button class="btn-export" (click)="exporterRapportSection('tickets-en-retard')">
+            <i class="fas fa-download"></i>
+          </button>
+        </div>
+        <div class="chart-body">
+          <div class="table-container">
+            <table class="tickets-table">
+              <thead>
+                <tr>
+                  <th>N° Ticket</th>
+                  <th>Type</th>
+                  <th>Priorité</th>
+                  <th>Statut</th>
+                  <th>Date création</th>
+                  <th>Retard</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let t of ticketsEnRetard()">
+                  <td><span class="ticket-numero">{{ t.num_ticket || '#' + t.id }}</span></td>
+                  <td>{{ t.type || '-' }}</td>
+                  <td><span class="priorite-badge" [ngClass]="'priorite-' + t.priorite">{{ t.priorite || '-' }}</span></td>
+                  <td><span class="statut-badge" [ngClass]="getStatutClass(t.statut)">{{ t.statut || '-' }}</span></td>
+                  <td>{{ formatDate(t.date_creation) }}</td>
+                  <td><span class="trend negative">{{ formatDuree(t.retard_heures || 0) }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : SLA & DÉLAIS                            -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'sla'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ sla()?.respecte || 0 }}</h3>
+            <p>SLA respectés</p>
+            <span class="trend positive">{{ formatPourcentage(sla()?.taux_respect || 0) }}</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ sla()?.depasse || 0 }}</h3>
+            <p>SLA dépassés</p>
+            <span class="trend negative">{{ formatPourcentage(sla()?.taux_depassement || 0) }}</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(155, 89, 182, 0.08); color: #9b59b6">
+            <i class="far fa-clock"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ formatDuree(delais()?.delai_moyen_global || 0) }}</h3>
+            <p>Délai moyen</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-bolt"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ formatDuree(delais()?.premiere_reponse || 0) }}</h3>
+            <p>1ère réponse</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3><i class="fas fa-file-alt"></i> Rapport SLA détaillé</h3>
+          <button class="btn-export" (click)="exporterRapportSection('sla')">
+            <i class="fas fa-download"></i>
+          </button>
+        </div>
+        <div class="chart-body">
+          <div class="repartition-list" *ngIf="sla()?.par_priorite?.length > 0">
+            <div class="repartition-item" *ngFor="let i of sla()?.par_priorite; let idx = index">
+              <div class="repartition-header">
+                <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.priorite }}</span>
+                <span class="repartition-value">
+                  <strong>{{ i.respecte }}/{{ i.total }}</strong>
+                  <small>({{ i.taux || 0 }}%)</small>
+                </span>
+              </div>
+              <div class="repartition-bar">
+                <div class="repartition-progress" [style.width.%]="i.taux || 0" [style.background]="getColor(idx)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3><i class="fas fa-stopwatch"></i> Rapport délais détaillé</h3>
+          <button class="btn-export" (click)="exporterRapportSection('delais')">
+            <i class="fas fa-download"></i>
+          </button>
+        </div>
+        <div class="chart-body">
+          <div class="repartition-list" *ngIf="delais()?.par_priorite?.length > 0">
+            <div class="repartition-item" *ngFor="let i of delais()?.par_priorite; let idx = index">
+              <div class="repartition-header">
+                <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.priorite }}</span>
+                <span class="repartition-value"><strong>{{ formatDuree(i.delai_moyen) }}</strong></span>
+              </div>
+              <div class="repartition-bar">
+                <div class="repartition-progress" [style.width.%]="getBarWidth(i.delai_moyen, getMaxFromList(delais()?.par_priorite, 'delai_moyen'))" [style.background]="getColor(idx)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Réclamations -->
+      <div class="chart-card" *ngIf="ticketsReclamations().length > 0">
+        <div class="chart-header">
+          <h3><i class="fas fa-bullhorn"></i> Réclamations ({{ ticketsReclamations().length }})</h3>
+          <button class="btn-export" (click)="exporterRapportSection('reclamations')">
+            <i class="fas fa-download"></i>
+          </button>
+        </div>
+        <div class="chart-body">
+          <div class="table-container">
+            <table class="tickets-table">
+              <thead>
+                <tr>
+                  <th>N° Ticket</th>
+                  <th>Type</th>
+                  <th>Priorité</th>
+                  <th>Entité</th>
+                  <th>Date création</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let t of ticketsReclamations()">
+                  <td><span class="ticket-numero">{{ t.num_ticket || '#' + t.id }}</span></td>
+                  <td>{{ t.type || '-' }}</td>
+                  <td><span class="priorite-badge" [ngClass]="'priorite-' + t.priorite">{{ t.priorite }}</span></td>
+                  <td>{{ t.entite_nom || '-' }}</td>
+                  <td>{{ formatDate(t.date_creation) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : UTILISATEURS                            -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'utilisateurs'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ utilisateurs()?.total || 0 }}</h3>
+            <p>Total utilisateurs</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-user-check"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ utilisateurs()?.actifs || 0 }}</h3>
+            <p>Actifs</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+            <i class="fas fa-user-slash"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ utilisateurs()?.inactifs || 0 }}</h3>
+            <p>Inactifs</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-user-plus"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ utilisateurs()?.nouveaux_mois || 0 }}</h3>
+            <p>Nouveaux ce mois</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-user-tag"></i> Par profil</h3>
+            <button class="btn-export" (click)="exporterRapportSection('utilisateurs-par-profil')">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="utilisateursParProfil().length > 0">
+              <div class="repartition-item" *ngFor="let i of utilisateursParProfil(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-building"></i> Par entité</h3>
+            <button class="btn-export" (click)="exporterRapportSection('utilisateurs-par-entite')">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="utilisateursParEntite().length > 0">
+              <div class="repartition-item" *ngFor="let i of utilisateursParEntite(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3><i class="fas fa-fire"></i> Utilisateurs les plus actifs</h3>
+          <button class="btn-export" (click)="exporterRapportSection('utilisateurs-actifs')">
+            <i class="fas fa-download"></i>
+          </button>
+        </div>
+        <div class="chart-body">
+          <div class="table-container" *ngIf="utilisateursActifs().length > 0; else noActifs">
+            <table class="tickets-table">
+              <thead>
+                <tr>
+                  <th>Utilisateur</th>
+                  <th>Profil</th>
+                  <th>Entité</th>
+                  <th>Tickets créés</th>
+                  <th>Dernière connexion</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let u of utilisateursActifs()">
+                  <td><strong>{{ getFullName(u) }}</strong></td>
+                  <td>{{ u.profil || '-' }}</td>
+                  <td>{{ u.entite_nom || '-' }}</td>
+                  <td>{{ u.tickets_crees || 0 }}</td>
+                  <td>{{ formatDateTime(u.derniere_connexion) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #noActifs>
+            <div class="no-chart-data"><i class="fas fa-users"></i><p>Aucune donnée</p></div>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : ENTITÉS                                 -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'entites'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-building"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ entites()?.total || 0 }}</h3>
+            <p>Total entités</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ entites()?.actives || 0 }}</h3>
+            <p>Actives</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ entites()?.total_utilisateurs || 0 }}</h3>
+            <p>Utilisateurs</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(155, 89, 182, 0.08); color: #9b59b6">
+            <i class="fas fa-cubes"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ entites()?.total_elements || 0 }}</h3>
+            <p>Éléments</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3><i class="fas fa-trophy"></i> Rapport de performance par entité</h3>
+          <button class="btn-export" (click)="exporterRapportSection('entites-performance')">
+            <i class="fas fa-download"></i>
+          </button>
+        </div>
+        <div class="chart-body">
+          <div class="table-container" *ngIf="entitesPerformance().length > 0; else noPerf">
+            <table class="tickets-table">
+              <thead>
+                <tr>
+                  <th>Entité</th>
+                  <th>Total tickets</th>
+                  <th>Résolus</th>
+                  <th>En cours</th>
+                  <th>Taux résolution</th>
+                  <th>Délai moyen</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let e of entitesPerformance()">
+                  <td><strong>{{ e.entite_nom || 'Entité #' + e.entite_id }}</strong></td>
+                  <td>{{ e.total_tickets || 0 }}</td>
+                  <td><span class="trend positive">{{ e.resolus || 0 }}</span></td>
+                  <td><span class="trend">{{ e.en_cours || 0 }}</span></td>
+                  <td><span class="trend positive">{{ formatPourcentage(e.taux_resolution || 0) }}</span></td>
+                  <td>{{ formatDuree(e.delai_moyen || 0) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #noPerf>
+            <div class="no-chart-data"><i class="fas fa-building"></i><p>Aucune donnée</p></div>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : ÉLÉMENTS                                -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'elements'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-cubes"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ elements()?.total || 0 }}</h3>
+            <p>Total éléments</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ elements()?.fonctionnels || 0 }}</h3>
+            <p>Fonctionnels</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+            <i class="fas fa-times-circle"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ elements()?.defectueux || 0 }}</h3>
+            <p>Défectueux</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-tools"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ elements()?.en_maintenance || 0 }}</h3>
+            <p>En maintenance</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-layer-group"></i> Par type</h3>
+            <button class="btn-export" (click)="exporterRapportSection('elements-par-type')">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="elementsParType().length > 0">
+              <div class="repartition-item" *ngFor="let i of elementsParType(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-info-circle"></i> Par état</h3>
+            <button class="btn-export" (click)="exporterRapportSection('elements-par-etat')">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="elementsParEtat().length > 0">
+              <div class="repartition-item" *ngFor="let i of elementsParEtat(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card" *ngIf="elementsDefectueux().length > 0">
+        <div class="chart-header">
+          <h3><i class="fas fa-exclamation-triangle"></i> Rapport des éléments défectueux ({{ elementsDefectueux().length }})</h3>
+          <button class="btn-export" (click)="exporterRapportSection('elements-defectueux')">
+            <i class="fas fa-download"></i>
+          </button>
+        </div>
+        <div class="chart-body">
+          <div class="table-container">
+            <table class="tickets-table">
+              <thead>
+                <tr>
+                  <th>Élément</th>
+                  <th>Type</th>
+                  <th>Entité</th>
+                  <th>État</th>
+                  <th>Date signalement</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let e of elementsDefectueux()">
+                  <td><strong>{{ e.nom || e.label }}</strong></td>
+                  <td>{{ e.type || '-' }}</td>
+                  <td>{{ e.entite_nom || '-' }}</td>
+                  <td><span class="statut-badge statut-ferme">{{ e.etat || 'défectueux' }}</span></td>
+                  <td>{{ formatDate(e.date_signalement) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : ACTIVITÉ                                -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'activite'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-history"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ activite()?.total_actions || 0 }}</h3>
+            <p>Actions totales</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-calendar-day"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ activite()?.actions_aujourd_hui || 0 }}</h3>
+            <p>Aujourd'hui</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-user-check"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ activite()?.utilisateurs_actifs || 0 }}</h3>
+            <p>Utilisateurs actifs</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(155, 89, 182, 0.08); color: #9b59b6">
+            <i class="fas fa-sign-in-alt"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ connexions().length || 0 }}</h3>
+            <p>Connexions</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3><i class="fas fa-user-check"></i> Rapport d'activité par utilisateur</h3>
+          <button class="btn-export" (click)="exporterRapportSection('activite-par-utilisateur')">
+            <i class="fas fa-download"></i>
+          </button>
+        </div>
+        <div class="chart-body">
+          <div class="table-container" *ngIf="activiteParUtilisateur().length > 0; else noActUsers">
+            <table class="tickets-table">
+              <thead>
+                <tr>
+                  <th>Utilisateur</th>
+                  <th>Actions</th>
+                  <th>Tickets créés</th>
+                  <th>Commentaires</th>
+                  <th>Dernière action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let u of activiteParUtilisateur()">
+                  <td><strong>{{ getFullName(u) }}</strong></td>
+                  <td>{{ u.total_actions || 0 }}</td>
+                  <td>{{ u.tickets_crees || 0 }}</td>
+                  <td>{{ u.commentaires || 0 }}</td>
+                  <td>{{ formatDateTime(u.derniere_action) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #noActUsers>
+            <div class="no-chart-data"><i class="fas fa-history"></i><p>Aucune donnée</p></div>
+          </ng-template>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3><i class="fas fa-sign-in-alt"></i> Rapport de connexions récentes</h3>
+          <button class="btn-export" (click)="exporterRapportSection('connexions')">
+            <i class="fas fa-download"></i>
+          </button>
+        </div>
+        <div class="chart-body">
+          <div class="table-container" *ngIf="connexions().length > 0; else noConn">
+            <table class="tickets-table">
+              <thead>
+                <tr>
+                  <th>Utilisateur</th>
+                  <th>Date connexion</th>
+                  <th>Adresse IP</th>
+                  <th>Navigateur</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let c of connexions()">
+                  <td><strong>{{ getFullName(c) }}</strong></td>
+                  <td>{{ formatDateTime(c.date_connexion) }}</td>
+                  <td>{{ c.adresse_ip || '-' }}</td>
+                  <td>{{ c.navigateur || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #noConn>
+            <div class="no-chart-data"><i class="fas fa-sign-in-alt"></i><p>Aucune connexion récente</p></div>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : RAPPORT PERSONNALISÉ                    -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'personnalise'">
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3><i class="fas fa-cog"></i> Générer un rapport personnalisé</h3>
+        </div>
+        <div class="chart-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label><i class="fas fa-tag"></i> Nom du rapport</label>
+              <input
+                type="text"
+                [(ngModel)]="rapportPersonnalise().nom"
+                placeholder="Ex: Rapport mensuel avril 2026"
+              />
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-align-left"></i> Description</label>
+              <textarea
+                [(ngModel)]="rapportPersonnalise().description"
+                rows="3"
+                placeholder="Description du rapport..."
+              ></textarea>
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-file-export"></i> Format</label>
+              <select [(ngModel)]="rapportPersonnalise().format">
+                <option *ngFor="let f of formats" [value]="f.value">{{ f.label }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="sections-selection">
+            <h4><i class="fas fa-list-check"></i> Sections à inclure</h4>
+            <div class="sections-checkboxes">
+              <label
+                class="checkbox-item"
+                *ngFor="let s of sectionsPersonnalisables; let i = index"
+                [class.selected]="s.selected"
+              >
+                <input
+                  type="checkbox"
+                  [checked]="s.selected"
+                  (change)="toggleSectionPersonnalisable(i)"
+                />
+                <span class="checkbox-label">{{ s.label }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-primary" (click)="genererRapportPersonnalise()" [disabled]="isLoadingExport()">
+              <i class="fas" [class.fa-download]="!isLoadingExport()" [class.fa-spinner]="isLoadingExport()" [class.fa-spin]="isLoadingExport()"></i>
+              {{ isLoadingExport() ? 'Génération...' : 'Générer le rapport' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Liste des rapports disponibles -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3><i class="fas fa-list"></i> Rapports disponibles</h3>
+        </div>
+        <div class="chart-body">
+          <div class="rapports-disponibles">
+            <div class="rapport-item" *ngFor="let r of [
+              {key: 'synthese', label: 'Synthèse globale', icon: 'fa-file-alt', color: '#0066b3'},
+              {key: 'tickets', label: 'Rapport tickets complet', icon: 'fa-ticket-alt', color: '#f39c12'},
+              {key: 'tickets-par-statut', label: 'Tickets par statut', icon: 'fa-circle', color: '#3498db'},
+              {key: 'tickets-par-priorite', label: 'Tickets par priorité', icon: 'fa-flag', color: '#dc3545'},
+              {key: 'tickets-par-categorie', label: 'Tickets par catégorie', icon: 'fa-folder', color: '#28a745'},
+              {key: 'tickets-par-entite', label: 'Tickets par entité', icon: 'fa-building', color: '#6f42c1'},
+              {key: 'tickets-par-agent', label: 'Tickets par agent', icon: 'fa-user-tie', color: '#20c997'},
+              {key: 'sla', label: 'Rapport SLA', icon: 'fa-shield-alt', color: '#17a2b8'},
+              {key: 'delais', label: 'Rapport délais', icon: 'fa-stopwatch', color: '#fd7e14'},
+              {key: 'reclamations', label: 'Rapport réclamations', icon: 'fa-bullhorn', color: '#e83e8c'},
+              {key: 'tickets-en-retard', label: 'Tickets en retard', icon: 'fa-exclamation-circle', color: '#dc3545'},
+              {key: 'utilisateurs', label: 'Rapport utilisateurs', icon: 'fa-users', color: '#0066b3'},
+              {key: 'utilisateurs-par-profil', label: 'Utilisateurs par profil', icon: 'fa-user-tag', color: '#f39c12'},
+              {key: 'utilisateurs-par-entite', label: 'Utilisateurs par entité', icon: 'fa-building', color: '#3498db'},
+              {key: 'utilisateurs-actifs', label: 'Utilisateurs actifs', icon: 'fa-fire', color: '#e74c3c'},
+              {key: 'entites', label: 'Rapport entités', icon: 'fa-building', color: '#0066b3'},
+              {key: 'entites-performance', label: 'Performance entités', icon: 'fa-trophy', color: '#28a745'},
+              {key: 'elements', label: 'Rapport éléments', icon: 'fa-cubes', color: '#6f42c1'},
+              {key: 'elements-par-type', label: 'Éléments par type', icon: 'fa-layer-group', color: '#f39c12'},
+              {key: 'elements-par-etat', label: 'Éléments par état', icon: 'fa-info-circle', color: '#17a2b8'},
+              {key: 'elements-defectueux', label: 'Éléments défectueux', icon: 'fa-exclamation-triangle', color: '#dc3545'},
+              {key: 'activite', label: 'Rapport activité', icon: 'fa-history', color: '#6c757d'},
+              {key: 'activite-par-utilisateur', label: 'Activité par utilisateur', icon: 'fa-user-check', color: '#20c997'},
+              {key: 'connexions', label: 'Rapport connexions', icon: 'fa-sign-in-alt', color: '#17a2b8'},
+            ]">
+              <div class="rapport-icon" [style.background]="r.color + '15'" [style.color]="r.color">
+                <i class="fas" [ngClass]="r.icon"></i>
+              </div>
+              <div class="rapport-content">
+                <strong>{{ r.label }}</strong>
+                <span>Format: {{ filterFormat() | uppercase }}</span>
+              </div>
+              <button class="btn-export" (click)="exporterRapportSection(r.key)" [disabled]="isLoadingExport()">
+                <i class="fas fa-download"></i> Exporter
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </ng-container>
+</div>

@@ -1,0 +1,1084 @@
+<div class="analytic-container">
+
+  <!-- ===== EN-TÊTE ===== -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">
+        <i class="fas fa-chart-line title-icon"></i>
+        Tableau de bord analytique
+      </h1>
+      <p class="page-subtitle">
+        <i class="fas fa-database"></i>
+        Analyse complète de toutes les données de l'application
+      </p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-export" (click)="exportData()">
+        <i class="fas fa-file-export"></i> Exporter
+      </button>
+      <button class="btn-print" (click)="printPage()">
+        <i class="fas fa-print"></i> Imprimer
+      </button>
+      <button class="btn-secondary" (click)="goBackToTickets()">
+        <i class="fas fa-arrow-left"></i> Retour
+      </button>
+      <button class="btn-primary" (click)="refreshData()" [disabled]="isLoading()">
+        <i class="fas" [class.fa-sync-alt]="!isLoading()" [class.fa-spinner]="isLoading()" [class.fa-spin]="isLoading()"></i>
+        {{ isLoading() ? 'Chargement...' : 'Actualiser' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== FILTRES ===== -->
+  <div class="filters-section">
+    <div class="filters-row">
+      <div class="filter-group">
+        <label><i class="fas fa-calendar-alt"></i> Date début</label>
+        <input type="date" [(ngModel)]="filterDateDebut" (change)="applyFilters()" />
+      </div>
+      <div class="filter-group">
+        <label><i class="fas fa-calendar-check"></i> Date fin</label>
+        <input type="date" [(ngModel)]="filterDateFin" (change)="applyFilters()" />
+      </div>
+      <div class="filter-group">
+        <label><i class="fas fa-circle"></i> Statut</label>
+        <select [(ngModel)]="filterStatut" (change)="applyFilters()">
+          <option *ngFor="let s of statuts" [value]="s.value">{{ s.label }}</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label><i class="fas fa-flag"></i> Priorité</label>
+        <select [(ngModel)]="filterPriorite" (change)="applyFilters()">
+          <option *ngFor="let p of priorites" [value]="p.value">{{ p.label }}</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label><i class="fas fa-folder"></i> Catégorie</label>
+        <select [(ngModel)]="filterCategorie" (change)="applyFilters()">
+          <option *ngFor="let c of categoriesOptions" [value]="c.value">{{ c.label }}</option>
+        </select>
+      </div>
+      <div class="filter-group filter-actions-group">
+        <label>&nbsp;</label>
+        <button class="btn-mes-tickets" (click)="resetFilters()">
+          <i class="fas fa-eraser"></i> Réinitialiser
+        </button>
+      </div>
+    </div>
+    <div class="filter-stats">
+      <span class="results-count">
+        <i class="fas fa-clock"></i>
+        Période : <strong>{{ formatDateFull(filterDateDebut()) }}</strong> au <strong>{{ formatDateFull(filterDateFin()) }}</strong>
+      </span>
+      <span class="results-count" *ngIf="totalAlertes() > 0" style="color: #dc3545">
+        <i class="fas fa-bell"></i> {{ totalAlertes() }} alerte(s)
+      </span>
+    </div>
+  </div>
+
+  <!-- ===== LOADING ===== -->
+  <div class="loading-state" *ngIf="isLoading()">
+    <div class="spinner"></div>
+    <p>Chargement des données analytiques...</p>
+  </div>
+
+  <ng-container *ngIf="!isLoading()">
+
+    <!-- ===== NAVIGATION SECTIONS ===== -->
+    <div class="sections-nav">
+      <button
+        *ngFor="let s of sections"
+        class="section-nav-btn"
+        [class.active]="activeSection() === s.value"
+        (click)="setSection(s.value)"
+      >
+        <i class="fas" [ngClass]="s.icon"></i>
+        <span>{{ s.label }}</span>
+      </button>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : VUE D'ENSEMBLE                          -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'apercu'">
+
+      <!-- KPIs globaux -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-ticket-alt"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ vueEnsemble()?.total_tickets || 0 }}</h3>
+            <p>Total tickets</p>
+            <span class="trend">{{ vueEnsemble()?.tickets_actifs || 0 }} actifs</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(52, 152, 219, 0.08); color: #3498db">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ vueEnsemble()?.total_utilisateurs || 0 }}</h3>
+            <p>Utilisateurs</p>
+            <span class="trend">{{ utilisateursKpis()?.actifs || 0 }} actifs</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-building"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ vueEnsemble()?.total_entites || 0 }}</h3>
+            <p>Entités</p>
+            <span class="trend">{{ entitesKpis()?.actives || 0 }} actives</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-cubes"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ vueEnsemble()?.total_elements || 0 }}</h3>
+            <p>Éléments</p>
+            <span class="trend negative">{{ elementsKpis()?.defectueux || 0 }} défectueux</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(155, 89, 182, 0.08); color: #9b59b6">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ vueEnsemble()?.tickets_resolus || 0 }}</h3>
+            <p>Résolus</p>
+            <span class="trend positive">{{ formatPourcentage(ticketsKpis()?.taux_resolution || 0) }}</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ ticketsKpis()?.haute_priorite || 0 }}</h3>
+            <p>Haute priorité</p>
+            <span class="trend negative">Urgent</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alertes -->
+      <div class="chart-card" *ngIf="alertes().length > 0">
+        <div class="chart-header">
+          <h3><i class="fas fa-bell"></i> Alertes actives ({{ alertes().length }})</h3>
+        </div>
+        <div class="chart-body">
+          <div class="alertes-list">
+            <div class="alerte-item" *ngFor="let a of alertes()" [ngClass]="getNiveauClass(a.niveau)">
+              <div class="alerte-icon">
+                <i class="fas" [class.fa-exclamation-triangle]="a.niveau === 'critique' || a.niveau === 'haute'" [class.fa-info-circle]="a.niveau !== 'critique' && a.niveau !== 'haute'"></i>
+              </div>
+              <div class="alerte-content">
+                <strong>{{ a.titre || 'Alerte' }}</strong>
+                <p>{{ a.message || '' }}</p>
+              </div>
+              <div class="alerte-meta">
+                <span class="trend" [ngClass]="a.niveau === 'critique' ? 'negative' : 'positive'">
+                  {{ a.niveau || 'info' }}
+                </span>
+                <small *ngIf="a.date">{{ formatDateTime(a.date) }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance globale -->
+      <div class="chart-card" *ngIf="performanceGlobale()">
+        <div class="chart-header">
+          <h3><i class="fas fa-tachometer-alt"></i> Performance globale</h3>
+        </div>
+        <div class="chart-body">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+                <i class="fas fa-percentage"></i>
+              </div>
+              <div class="stat-info">
+                <h3>{{ formatPourcentage(performanceGlobale()?.taux_resolution_global || 0) }}</h3>
+                <p>Taux de résolution</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+                <i class="fas fa-shield-alt"></i>
+              </div>
+              <div class="stat-info">
+                <h3>{{ formatPourcentage(performanceGlobale()?.taux_respect_sla || 0) }}</h3>
+                <p>Respect SLA</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(155, 89, 182, 0.08); color: #9b59b6">
+                <i class="far fa-clock"></i>
+              </div>
+              <div class="stat-info">
+                <h3>{{ formatDuree(performanceGlobale()?.delai_moyen_global || 0) }}</h3>
+                <p>Délai moyen</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+                <i class="fas fa-fire"></i>
+              </div>
+              <div class="stat-info">
+                <h3>{{ performanceGlobale()?.charge_travail || 0 }}</h3>
+                <p>Charge de travail</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : TICKETS                                 -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'tickets'">
+
+      <!-- Sous-navigation tickets -->
+      <div class="subsections-nav">
+        <button
+          *ngFor="let s of sousSectionsTickets"
+          class="subsection-btn"
+          [class.active]="activeSousSection() === s.value"
+          (click)="setSousSectionTickets(s.value)"
+        >
+          <i class="fas" [ngClass]="s.icon"></i> {{ s.label }}
+        </button>
+      </div>
+
+      <!-- Tickets KPIs -->
+      <ng-container *ngIf="activeSousSection() === 'kpis'">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+              <i class="fas fa-ticket-alt"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ ticketsKpis()?.total || 0 }}</h3>
+              <p>Total</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+              <i class="fas fa-folder-open"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ ticketsKpis()?.ouverts || 0 }}</h3>
+              <p>Ouverts</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(52, 152, 219, 0.08); color: #3498db">
+              <i class="fas fa-sync-alt"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ ticketsKpis()?.en_cours || 0 }}</h3>
+              <p>En cours</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ ticketsKpis()?.resolus || 0 }}</h3>
+              <p>Résolus</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(108, 117, 125, 0.08); color: #6c757d">
+              <i class="fas fa-lock"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ ticketsKpis()?.fermes || 0 }}</h3>
+              <p>Fermés</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ ticketsKpis()?.haute_priorite || 0 }}</h3>
+              <p>Haute priorité</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(230, 126, 34, 0.08); color: #e67e22">
+              <i class="fas fa-bullhorn"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ ticketsKpis()?.reclamations || 0 }}</h3>
+              <p>Réclamations</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+              <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ formatPourcentage(ticketsKpis()?.taux_resolution || 0) }}</h3>
+              <p>Taux résolution</p>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- Évolution -->
+      <ng-container *ngIf="activeSousSection() === 'evolution'">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-area"></i> Évolution des tickets</h3>
+            <div class="period-selector">
+              <button *ngFor="let p of periodes" class="period-btn"
+                [class.active]="filterPeriode() === p.value" (click)="setPeriode(p.value)">
+                {{ p.label }}
+              </button>
+            </div>
+          </div>
+          <div class="chart-body">
+            <div class="evolution-chart" *ngIf="ticketsEvolution().length > 0; else noEvo">
+              <div class="chart-legend">
+                <span class="legend-item"><span class="legend-color legend-crees"></span> Créés</span>
+                <span class="legend-item"><span class="legend-color legend-resolus"></span> Résolus</span>
+                <span class="legend-item"><span class="legend-color legend-fermes"></span> Fermés</span>
+              </div>
+              <div class="bars-container">
+                <div class="bar-group" *ngFor="let item of ticketsEvolution()">
+                  <div class="bars">
+                    <div class="bar bar-crees" [style.height.%]="getEvolutionBarHeight(item.crees || 0)">
+                      <span class="bar-value" *ngIf="item.crees > 0">{{ item.crees }}</span>
+                    </div>
+                    <div class="bar bar-resolus" [style.height.%]="getEvolutionBarHeight(item.resolus || 0)">
+                      <span class="bar-value" *ngIf="item.resolus > 0">{{ item.resolus }}</span>
+                    </div>
+                    <div class="bar bar-fermes" [style.height.%]="getEvolutionBarHeight(item.fermes || 0)">
+                      <span class="bar-value" *ngIf="item.fermes > 0">{{ item.fermes }}</span>
+                    </div>
+                  </div>
+                  <span class="bar-label">{{ formatDate(item.date) }}</span>
+                </div>
+              </div>
+            </div>
+            <ng-template #noEvo>
+              <div class="no-chart-data"><i class="fas fa-chart-area"></i><p>Aucune donnée</p></div>
+            </ng-template>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- Répartitions -->
+      <ng-container *ngIf="activeSousSection() === 'repartition'">
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-header"><h3><i class="fas fa-circle"></i> Par statut</h3></div>
+            <div class="chart-body">
+              <div class="repartition-list" *ngIf="ticketsParStatut().length > 0">
+                <div class="repartition-item" *ngFor="let i of ticketsParStatut(); let idx = index">
+                  <div class="repartition-header">
+                    <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                    <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                  </div>
+                  <div class="repartition-bar">
+                    <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header"><h3><i class="fas fa-flag"></i> Par priorité</h3></div>
+            <div class="chart-body">
+              <div class="repartition-list" *ngIf="ticketsParPriorite().length > 0">
+                <div class="repartition-item" *ngFor="let i of ticketsParPriorite(); let idx = index">
+                  <div class="repartition-header">
+                    <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                    <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                  </div>
+                  <div class="repartition-bar">
+                    <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header"><h3><i class="fas fa-folder"></i> Par catégorie</h3></div>
+            <div class="chart-body">
+              <div class="repartition-list" *ngIf="ticketsParCategorie().length > 0">
+                <div class="repartition-item" *ngFor="let i of ticketsParCategorie(); let idx = index">
+                  <div class="repartition-header">
+                    <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                    <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                  </div>
+                  <div class="repartition-bar">
+                    <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header"><h3><i class="fas fa-building"></i> Par entité</h3></div>
+            <div class="chart-body">
+              <div class="repartition-list" *ngIf="ticketsParEntite().length > 0">
+                <div class="repartition-item" *ngFor="let i of ticketsParEntite(); let idx = index">
+                  <div class="repartition-header">
+                    <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                    <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                  </div>
+                  <div class="repartition-bar">
+                    <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- SLA -->
+      <ng-container *ngIf="activeSousSection() === 'sla'">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+              <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ ticketsSLA()?.respecte || 0 }}</h3>
+              <p>SLA respectés</p>
+              <span class="trend positive">{{ formatPourcentage(ticketsSLA()?.taux_respect || 0) }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+              <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ ticketsSLA()?.depasse || 0 }}</h3>
+              <p>SLA dépassés</p>
+              <span class="trend negative">{{ formatPourcentage(ticketsSLA()?.taux_depassement || 0) }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+              <i class="fas fa-fire"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ ticketsSLA()?.en_cours || 0 }}</h3>
+              <p>SLA en cours</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+              <i class="fas fa-bullhorn"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ ticketsSLA()?.reclamations || 0 }}</h3>
+              <p>Réclamations (SLA)</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card" *ngIf="ticketsSLA()?.par_priorite?.length > 0">
+          <div class="chart-header"><h3><i class="fas fa-chart-bar"></i> SLA par priorité</h3></div>
+          <div class="chart-body">
+            <div class="repartition-list">
+              <div class="repartition-item" *ngFor="let i of ticketsSLA()?.par_priorite; let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.priorite }}</span>
+                  <span class="repartition-value">
+                    <strong>{{ i.respecte }}/{{ i.total }}</strong>
+                    <small>({{ i.taux || 0 }}%)</small>
+                  </span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.taux || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- Délais -->
+      <ng-container *ngIf="activeSousSection() === 'delais'">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(155, 89, 182, 0.08); color: #9b59b6">
+              <i class="far fa-clock"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ formatDuree(ticketsDelais()?.delai_moyen_global || 0) }}</h3>
+              <p>Délai moyen global</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+              <i class="fas fa-bolt"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ formatDuree(ticketsDelais()?.premiere_reponse || 0) }}</h3>
+              <p>1ère réponse</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+              <i class="fas fa-check"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ formatDuree(ticketsDelais()?.resolution || 0) }}</h3>
+              <p>Résolution</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+              <i class="fas fa-hourglass-half"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ formatDuree(ticketsDelais()?.cloture || 0) }}</h3>
+              <p>Clôture</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card" *ngIf="ticketsDelais()?.par_priorite?.length > 0">
+          <div class="chart-header"><h3><i class="fas fa-stopwatch"></i> Délais par priorité</h3></div>
+          <div class="chart-body">
+            <div class="repartition-list">
+              <div class="repartition-item" *ngFor="let i of ticketsDelais()?.par_priorite; let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.priorite }}</span>
+                  <span class="repartition-value"><strong>{{ formatDuree(i.delai_moyen) }}</strong></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="getBarWidth(i.delai_moyen, getMaxFromList(ticketsDelais()?.par_priorite, 'delai_moyen'))" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      
+
+      <!-- Top Créateurs -->
+      <ng-container *ngIf="activeSousSection() === 'createurs'">
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="fas fa-user-edit"></i> Top créateurs de tickets</h3></div>
+          <div class="chart-body">
+            <div class="agents-list" *ngIf="topCreateurs().length > 0; else noCreateurs">
+              <div class="agent-item" *ngFor="let c of topCreateurs(); let i = index">
+                <div class="agent-rank" [ngClass]="'rank-' + (i + 1)">{{ i + 1 }}</div>
+                <div class="agent-avatar"><i class="fas fa-user"></i></div>
+                <div class="agent-info">
+                  <strong>{{ getFullName(c) }}</strong>
+                  <span class="agent-stats">
+                    <i class="fas fa-ticket-alt"></i> {{ c.tickets_crees || 0 }} tickets créés
+                  </span>
+                </div>
+                <div class="agent-badges">
+                  <span class="trend">{{ c.derniere_activite ? formatDate(c.derniere_activite) : '-' }}</span>
+                </div>
+              </div>
+            </div>
+            <ng-template #noCreateurs>
+              <div class="no-chart-data"><i class="fas fa-users-slash"></i><p>Aucune donnée</p></div>
+            </ng-template>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : UTILISATEURS                            -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'utilisateurs'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ utilisateursKpis()?.total || 0 }}</h3>
+            <p>Total utilisateurs</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-user-check"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ utilisateursKpis()?.actifs || 0 }}</h3>
+            <p>Actifs</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+            <i class="fas fa-user-slash"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ utilisateursKpis()?.inactifs || 0 }}</h3>
+            <p>Inactifs</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-user-plus"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ utilisateursKpis()?.nouveaux_mois || 0 }}</h3>
+            <p>Nouveaux ce mois</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="fas fa-user-tag"></i> Par profil</h3></div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="utilisateursParProfil().length > 0">
+              <div class="repartition-item" *ngFor="let i of utilisateursParProfil(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="fas fa-building"></i> Par entité</h3></div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="utilisateursParEntite().length > 0">
+              <div class="repartition-item" *ngFor="let i of utilisateursParEntite(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header"><h3><i class="fas fa-fire"></i> Utilisateurs les plus actifs</h3></div>
+        <div class="chart-body">
+          <div class="agents-list" *ngIf="utilisateursActifs().length > 0">
+            <div class="agent-item" *ngFor="let u of utilisateursActifs(); let i = index">
+              <div class="agent-rank" [ngClass]="'rank-' + (i + 1)">{{ i + 1 }}</div>
+              <div class="agent-avatar"><i class="fas fa-user"></i></div>
+              <div class="agent-info">
+                <strong>{{ getFullName(u) }}</strong>
+                <span class="agent-stats">
+                  <i class="fas fa-ticket-alt"></i> {{ u.tickets_crees || 0 }} créés
+                  · <i class="fas fa-comments"></i> {{ u.commentaires || 0 }} commentaires
+                </span>
+              </div>
+              <div class="agent-badges">
+                <span class="trend">{{ u.derniere_connexion ? formatDate(u.derniere_connexion) : '-' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : ENTITÉS                                 -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'entites'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-building"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ entitesKpis()?.total || 0 }}</h3>
+            <p>Total entités</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ entitesKpis()?.actives || 0 }}</h3>
+            <p>Actives</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ entitesKpis()?.total_utilisateurs || 0 }}</h3>
+            <p>Utilisateurs rattachés</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(155, 89, 182, 0.08); color: #9b59b6">
+            <i class="fas fa-cubes"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ entitesKpis()?.total_elements || 0 }}</h3>
+            <p>Éléments rattachés</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header"><h3><i class="fas fa-trophy"></i> Performance par entité</h3></div>
+        <div class="chart-body">
+          <div class="performance-list" *ngIf="entitesPerformance().length > 0">
+            <div class="performance-item" *ngFor="let e of entitesPerformance()">
+              <div class="performance-header">
+                <span class="performance-name">
+                  <i class="fas fa-building"></i> {{ e.entite_nom || 'Entité #' + e.entite_id }}
+                </span>
+                <div class="performance-metrics">
+                  <span class="trend"><strong>{{ e.total_tickets || 0 }}</strong> tickets</span>
+                  <span class="trend positive"><strong>{{ e.resolus || 0 }}</strong> résolus</span>
+                  <span class="trend"><strong>{{ e.utilisateurs || 0 }}</strong> users</span>
+                </div>
+              </div>
+              <div class="performance-bar">
+                <div class="performance-progress performance-total" [style.width.%]="getBarWidth(e.total_tickets || 0, getMaxFromList(entitesPerformance(), 'total_tickets'))"></div>
+                <div class="performance-progress performance-resolus" [style.width.%]="getBarWidth(e.resolus || 0, getMaxFromList(entitesPerformance(), 'total_tickets'))"></div>
+              </div>
+              <div class="performance-footer">
+                <span class="performance-rate">
+                  <i class="fas fa-percentage"></i> Taux : <strong>{{ e.taux_resolution || 0 }}%</strong>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header"><h3><i class="fas fa-layer-group"></i> Par type</h3></div>
+        <div class="chart-body">
+          <div class="repartition-list" *ngIf="entitesParType().length > 0">
+            <div class="repartition-item" *ngFor="let i of entitesParType(); let idx = index">
+              <div class="repartition-header">
+                <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+              </div>
+              <div class="repartition-bar">
+                <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : ÉLÉMENTS                                -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'elements'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-cubes"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ elementsKpis()?.total || 0 }}</h3>
+            <p>Total éléments</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ elementsKpis()?.fonctionnels || 0 }}</h3>
+            <p>Fonctionnels</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+            <i class="fas fa-times-circle"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ elementsKpis()?.defectueux || 0 }}</h3>
+            <p>Défectueux</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-tools"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ elementsKpis()?.en_maintenance || 0 }}</h3>
+            <p>En maintenance</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="fas fa-layer-group"></i> Par type</h3></div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="elementsParType().length > 0">
+              <div class="repartition-item" *ngFor="let i of elementsParType(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="fas fa-info-circle"></i> Par état</h3></div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="elementsParEtat().length > 0">
+              <div class="repartition-item" *ngFor="let i of elementsParEtat(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : ACTIVITÉ                                -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'activite'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-history"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ activiteKpis()?.total_actions || 0 }}</h3>
+            <p>Actions totales</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-calendar-day"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ activiteKpis()?.actions_aujourd_hui || 0 }}</h3>
+            <p>Aujourd'hui</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-user-check"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ activiteKpis()?.utilisateurs_actifs || 0 }}</h3>
+            <p>Utilisateurs actifs</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(155, 89, 182, 0.08); color: #9b59b6">
+            <i class="fas fa-fire"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ activiteKpis()?.actions_heure || 0 }}</h3>
+            <p>Actions / heure</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="fas fa-chart-bar"></i> Par action</h3></div>
+          <div class="chart-body">
+            <div class="repartition-list" *ngIf="activiteParAction().length > 0">
+              <div class="repartition-item" *ngFor="let i of activiteParAction(); let idx = index">
+                <div class="repartition-header">
+                  <span class="repartition-label"><span class="repartition-dot" [style.background]="getColor(idx)"></span>{{ i.label }}</span>
+                  <span class="repartition-value"><strong>{{ i.value }}</strong><small>({{ i.pourcentage || 0 }}%)</small></span>
+                </div>
+                <div class="repartition-bar">
+                  <div class="repartition-progress" [style.width.%]="i.pourcentage || 0" [style.background]="getColor(idx)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="far fa-clock"></i> Activité par heure</h3></div>
+          <div class="chart-body">
+            <div class="evolution-chart" *ngIf="activiteParHeure().length > 0">
+              <div class="bars-container" style="height: 180px">
+                <div class="bar-group" *ngFor="let h of activiteParHeure()">
+                  <div class="bars">
+                    <div class="bar bar-crees" [style.height.%]="getBarWidth(h.value || 0, getMaxFromList(activiteParHeure(), 'value'))">
+                      <span class="bar-value" *ngIf="h.value > 0">{{ h.value }}</span>
+                    </div>
+                  </div>
+                  <span class="bar-label">{{ h.heure }}h</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header"><h3><i class="fas fa-list"></i> Activité récente</h3></div>
+        <div class="chart-body">
+          <div class="activity-list" *ngIf="activiteRecente().length > 0; else noAct">
+            <div class="activity-item" *ngFor="let a of activiteRecente()">
+              <div class="activity-icon">
+                <i class="fas fa-circle"></i>
+              </div>
+              <div class="activity-content">
+                <strong>{{ a.user_nom || 'Utilisateur' }}</strong>
+                <p>{{ a.description || a.action }}</p>
+              </div>
+              <div class="activity-meta">
+                <span class="trend">{{ a.action || '-' }}</span>
+                <small>{{ formatDateTime(a.created_at || a.date) }}</small>
+              </div>
+            </div>
+          </div>
+          <ng-template #noAct>
+            <div class="no-chart-data"><i class="fas fa-history"></i><p>Aucune activité récente</p></div>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SECTION : PERFORMANCE                             -->
+    <!-- ================================================== -->
+    <div class="section-content" *ngIf="activeSection() === 'performance'">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+            <i class="fas fa-percentage"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ formatPourcentage(performanceGlobale()?.taux_resolution_global || 0) }}</h3>
+            <p>Taux de résolution</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ formatPourcentage(performanceGlobale()?.taux_respect_sla || 0) }}</h3>
+            <p>Respect SLA</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(155, 89, 182, 0.08); color: #9b59b6">
+            <i class="far fa-clock"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ formatDuree(performanceGlobale()?.delai_moyen_global || 0) }}</h3>
+            <p>Délai moyen</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+            <i class="fas fa-fire"></i>
+          </div>
+          <div class="stat-info">
+            <h3>{{ performanceGlobale()?.charge_travail || 0 }}</h3>
+            <p>Charge de travail</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header"><h3><i class="fas fa-chart-line"></i> Indicateurs de performance</h3></div>
+        <div class="chart-body">
+          <div class="repartition-list" *ngIf="performanceGlobale()">
+            <div class="repartition-item">
+              <div class="repartition-header">
+                <span class="repartition-label">Taux de résolution</span>
+                <span class="repartition-value"><strong>{{ performanceGlobale()?.taux_resolution_global || 0 }}%</strong></span>
+              </div>
+              <div class="repartition-bar">
+                <div class="repartition-progress" [style.width.%]="performanceGlobale()?.taux_resolution_global || 0" style="background: linear-gradient(90deg, #28a745, #48bb78)"></div>
+              </div>
+            </div>
+            <div class="repartition-item">
+              <div class="repartition-header">
+                <span class="repartition-label">Respect SLA</span>
+                <span class="repartition-value"><strong>{{ performanceGlobale()?.taux_respect_sla || 0 }}%</strong></span>
+              </div>
+              <div class="repartition-bar">
+                <div class="repartition-progress" [style.width.%]="performanceGlobale()?.taux_respect_sla || 0" style="background: linear-gradient(90deg, #0066b3, #3498db)"></div>
+              </div>
+            </div>
+            <div class="repartition-item">
+              <div class="repartition-header">
+                <span class="repartition-label">Taux de clôture</span>
+                <span class="repartition-value"><strong>{{ performanceGlobale()?.taux_cloture || 0 }}%</strong></span>
+              </div>
+              <div class="repartition-bar">
+                <div class="repartition-progress" [style.width.%]="performanceGlobale()?.taux_cloture || 0" style="background: linear-gradient(90deg, #6f42c1, #9b59b6)"></div>
+              </div>
+            </div>
+            <div class="repartition-item">
+              <div class="repartition-header">
+                <span class="repartition-label">Satisfaction (si disponible)</span>
+                <span class="repartition-value"><strong>{{ performanceGlobale()?.satisfaction || 0 }}%</strong></span>
+              </div>
+              <div class="repartition-bar">
+                <div class="repartition-progress" [style.width.%]="performanceGlobale()?.satisfaction || 0" style="background: linear-gradient(90deg, #f39c12, #fd7e14)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </ng-container>
+</div>

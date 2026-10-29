@@ -1,0 +1,752 @@
+<div class="tickets-container">
+  <!-- En-tête -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">
+        <i class="fas fa-ticket-alt title-icon"></i>
+        Gestion des tickets
+      </h1>
+    </div>
+    <div class="header-actions">
+      <button class="btn-export" (click)="exportData()">
+        <i class="fas fa-file-export"></i> Exporter
+      </button>
+      <button class="btn-print" (click)="printPage()"><i class="fas fa-print"></i> Imprimer</button>
+      <button
+        *ngIf="isSuperAdmin() || isSelfservice()"
+        class="btn-primary"
+        (click)="goToAddTicket()"
+      >
+        <i class="fas fa-plus-circle"></i> Nouveau ticket
+      </button>
+    </div>
+  </div>
+
+  <!-- Statistiques -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+        <i class="fas fa-ticket-alt"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ stats().total }}</h3>
+        <p>Total tickets</p>
+        <span class="trend positive"
+          ><i class="fas fa-arrow-up"></i> {{ stats().ouverts }} ouverts</span
+        >
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+        <i class="fas fa-circle"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ stats().ouverts }}</h3>
+        <p>Ouverts</p>
+        <span class="trend">{{ ((stats().ouverts / stats().total) * 100 || 0).toFixed(1) }}%</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background: rgba(52, 152, 219, 0.08); color: #3498db">
+        <i class="fas fa-sync-alt"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ stats().en_cours }}</h3>
+        <p>En cours</p>
+        <span class="trend">{{ ((stats().en_cours / stats().total) * 100 || 0).toFixed(1) }}%</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ stats().resolus }}</h3>
+        <p>Résolus</p>
+        <span class="trend">{{ ((stats().resolus / stats().total) * 100 || 0).toFixed(1) }}%</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ stats().haute_priorite }}</h3>
+        <p>Haute priorité</p>
+        <span class="trend negative"
+          ><i class="fas fa-arrow-down"></i>
+          {{ ((stats().haute_priorite / stats().total) * 100 || 0).toFixed(1) }}%</span
+        >
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="filters-section">
+    <div class="search-bar">
+      <i class="fas fa-search search-icon"></i>
+      <input
+        type="text"
+        placeholder="Rechercher un ticket..."
+        (input)="onSearch($event)"
+        [value]="searchQuery()"
+      />
+      <button *ngIf="searchQuery()" class="clear-search" (click)="clearFilters()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="filters-row">
+      <div class="filter-group">
+        <label><i class="fas fa-tag"></i> Type</label>
+        <select (change)="setFilterType($any($event.target).value)" [value]="filterType()">
+          <option *ngFor="let t of types" [value]="t.value">{{ t.label }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label><i class="fas fa-circle"></i> Statut</label>
+        <select (change)="setFilterStatut($any($event.target).value)" [value]="filterStatut()">
+          <option *ngFor="let s of statuts" [value]="s.value">{{ s.label }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label><i class="fas fa-flag"></i> Priorité</label>
+        <select (change)="setFilterPriorite($any($event.target).value)" [value]="filterPriorite()">
+          <option *ngFor="let p of priorites" [value]="p.value">{{ p.label }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label><i class="fas fa-folder"></i> Catégorie</label>
+        <select
+          (change)="setFilterCategorie($any($event.target).value)"
+          [value]="filterCategorie()"
+        >
+          <option *ngFor="let c of categories" [value]="c.value">{{ c.label }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group filter-mes-tickets" *ngIf="canViewBoutonMesTickets()">
+        <label>&nbsp;</label>
+        <button
+          class="btn-mes-tickets"
+          [class.active]="filterMesTickets()"
+          (click)="toggleMesTickets()"
+        >
+          <i class="fas fa-user"></i>
+          {{ filterMesTickets() ? 'Tous les tickets' : 'Mes tickets' }}
+          <span class="badge" *ngIf="!filterMesTickets()">{{ mesTicketsCount() }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="filter-stats" *ngIf="!isLoading()">
+      <span class="results-count">
+        <i class="fas fa-ticket-alt"></i> {{ filteredTickets().length }} résultat{{
+          filteredTickets().length > 1 ? 's' : ''
+        }}
+      </span>
+      <button
+        *ngIf="
+          searchQuery() ||
+          filterStatut() !== 'tous' ||
+          filterPriorite() !== 'toutes' ||
+          filterCategorie() !== 'toutes'
+        "
+        class="clear-filters"
+        (click)="clearFilters()"
+      >
+        <i class="fas fa-eraser"></i> Effacer les filtres
+      </button>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination-advanced" *ngIf="!isLoading() && filteredTickets().length > 0">
+    <div class="pagination-info">
+      <div class="items-per-page">
+        <label for="itemsPerPage"><i class="fas fa-list-ul"></i> Afficher</label>
+        <select id="itemsPerPage" (change)="changeItemsPerPage($event)" [value]="itemsPerPage()">
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        <span>par page</span>
+      </div>
+    </div>
+
+    <div class="pagination-controls" *ngIf="totalPages() > 1">
+      <button
+        class="page-nav-btn"
+        (click)="goToFirstPage()"
+        [disabled]="currentPage() === 1"
+        title="Première page"
+      >
+        <i class="fas fa-step-backward"></i>
+      </button>
+      <button
+        class="page-nav-btn"
+        (click)="changePage(currentPage() - 1)"
+        [disabled]="currentPage() === 1"
+        title="Page précédente"
+      >
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <div class="page-numbers">
+        <ng-container *ngFor="let page of getPageNumbers()">
+          <button
+            class="page-number"
+            [class.active]="page === currentPage()"
+            [class.dots]="page === '...'"
+            (click)="onPageClick(page)"
+            [disabled]="page === '...'"
+          >
+            {{ page }}
+          </button>
+        </ng-container>
+      </div>
+      <button
+        class="page-nav-btn"
+        (click)="changePage(currentPage() + 1)"
+        [disabled]="currentPage() === totalPages()"
+        title="Page suivante"
+      >
+        <i class="fas fa-chevron-right"></i>
+      </button>
+      <button
+        class="page-nav-btn"
+        (click)="goToLastPage()"
+        [disabled]="currentPage() === totalPages()"
+        title="Dernière page"
+      >
+        <i class="fas fa-step-forward"></i>
+      </button>
+    </div>
+
+    <div class="single-page-message" *ngIf="totalPages() === 1">
+      <span class="page-info"><i class="fas fa-check-circle"></i> Page 1 sur 1</span>
+    </div>
+  </div>
+
+  <!-- Tableau des tickets -->
+  <div class="table-view" *ngIf="!isLoading()">
+    <div class="table-container">
+      <table class="tickets-table">
+        <thead>
+          <tr>
+            <th (click)="sortBy('num_ticket')" class="sortable">
+              N° Ticket
+              <i
+                class="fas"
+                [class.fa-sort]="sortField() !== 'num_ticket'"
+                [class.fa-sort-up]="sortField() === 'num_ticket' && sortDirection() === 'asc'"
+                [class.fa-sort-down]="sortField() === 'num_ticket' && sortDirection() === 'desc'"
+              ></i>
+            </th>
+            <th (click)="sortBy('type')" class="sortable">
+              Type
+              <i
+                class="fas"
+                [class.fa-sort]="sortField() !== 'type'"
+                [class.fa-sort-up]="sortField() === 'type' && sortDirection() === 'asc'"
+                [class.fa-sort-down]="sortField() === 'type' && sortDirection() === 'desc'"
+              ></i>
+            </th>
+            <th (click)="sortBy('statut')" class="sortable">
+              Statut
+              <i
+                class="fas"
+                [class.fa-sort]="sortField() !== 'statut'"
+                [class.fa-sort-up]="sortField() === 'statut' && sortDirection() === 'asc'"
+                [class.fa-sort-down]="sortField() === 'statut' && sortDirection() === 'desc'"
+              ></i>
+            </th>
+            <th (click)="sortBy('haute_priorite')" class="sortable">
+              Priorité
+              <i
+                class="fas"
+                [class.fa-sort]="sortField() !== 'haute_priorite'"
+                [class.fa-sort-up]="sortField() === 'haute_priorite' && sortDirection() === 'asc'"
+                [class.fa-sort-down]="
+                  sortField() === 'haute_priorite' && sortDirection() === 'desc'
+                "
+              ></i>
+            </th>
+            <th (click)="sortBy('categorie')" class="sortable">
+              Catégorie
+              <i
+                class="fas"
+                [class.fa-sort]="sortField() !== 'categorie'"
+                [class.fa-sort-up]="sortField() === 'categorie' && sortDirection() === 'asc'"
+                [class.fa-sort-down]="sortField() === 'categorie' && sortDirection() === 'desc'"
+              ></i>
+            </th>
+            <th (click)="sortBy('demandeur_nom')" class="sortable">
+              Demandeur
+              <i
+                class="fas"
+                [class.fa-sort]="sortField() !== 'demandeur_nom'"
+                [class.fa-sort-up]="sortField() === 'demandeur_nom' && sortDirection() === 'asc'"
+                [class.fa-sort-down]="sortField() === 'demandeur_nom' && sortDirection() === 'desc'"
+              ></i>
+            </th>
+            <th (click)="sortBy('telephone')" class="sortable">
+              <i class="fas fa-phone"></i> Téléphone
+              <i
+                class="fas"
+                [class.fa-sort]="sortField() !== 'telephone'"
+                [class.fa-sort-up]="sortField() === 'telephone' && sortDirection() === 'asc'"
+                [class.fa-sort-down]="sortField() === 'telephone' && sortDirection() === 'desc'"
+              ></i>
+            </th>
+            <th (click)="sortBy('sla')" class="sortable">
+              SLA
+              <i
+                class="fas"
+                [class.fa-sort]="sortField() !== 'sla'"
+                [class.fa-sort-up]="sortField() === 'sla' && sortDirection() === 'asc'"
+                [class.fa-sort-down]="sortField() === 'sla' && sortDirection() === 'desc'"
+              ></i>
+            </th>
+            <th (click)="sortBy('date_creation')" class="sortable">
+              Date
+              <i
+                class="fas"
+                [class.fa-sort]="sortField() !== 'date_creation'"
+                [class.fa-sort-up]="sortField() === 'date_creation' && sortDirection() === 'asc'"
+                [class.fa-sort-down]="sortField() === 'date_creation' && sortDirection() === 'desc'"
+              ></i>
+            </th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let ticket of currentPageItems()">
+            <td class="ticket-numero-cell">
+              <span class="ticket-numero">{{ ticket.num_ticket || 'N/A' }}</span>
+            </td>
+            <td class="ticket-title">
+              <div class="ticket-info">
+                <strong>{{ ticket.titre }}</strong>
+                <span class="ticket-comments-badge" *ngIf="ticket.commentaires?.length > 0">
+                  <i class="fas fa-comment"></i> {{ ticket.commentaires.length }}
+                </span>
+              </div>
+            </td>
+            <td>
+              <span class="statut-badge" [ngClass]="getStatutClass(ticket.statut)">
+                <i class="fas" [ngClass]="getStatutIcon(ticket.statut)"></i>
+                {{ getStatutLabel(ticket.statut) }}
+              </span>
+            </td>
+            <td>
+              <span class="priorite-badge" [ngClass]="getPrioriteClass(ticket.priorite)">
+                <i
+                  class="fas"
+                  [class.fa-flag]="ticket.priorite === 'haute'"
+                  [class.fa-flag]="ticket.priorite === 'moyenne'"
+                  [class.fa-flag-checkered]="ticket.priorite === 'basse'"
+                ></i>
+                {{ ticket.priorite }}
+              </span>
+            </td>
+            <td>
+              <span
+                class="categorie-badge"
+                [ngClass]="{ 'type-reclamation': ticket.type === 'reclamation' }"
+              >
+                <i class="fas fa-folder"></i> {{ ticket.categorie }}
+                <span
+                  *ngIf="ticket.type === 'reclamation'"
+                  class="reclamation-badge"
+                  title="Ticket devenu réclamation (SLA dépassé)"
+                >
+                  <i class="fas fa-exclamation-triangle"></i>
+                </span>
+              </span>
+            </td>
+            <td>
+              <div class="demandeur-info">
+                <strong>{{
+                  ticket.demandeur_nom || ticket.prenom + ' ' + ticket.nom || 'Inconnu'
+                }}</strong>
+                <small class="demandeur-email" *ngIf="ticket.adresse || ticket.adresse">
+                  <i class="fas fa-envelope"></i> {{ ticket.adresse || ticket.adresse }}
+                </small>
+              </div>
+            </td>
+            <td>
+              <div class="telephone-info" *ngIf="ticket.telephone; else pasDeTelephone">
+                <i class="fas fa-phone telephone-icon"></i>
+                <span class="telephone-number">{{ formatTelephone(ticket.telephone) }}</span>
+              </div>
+              <ng-template #pasDeTelephone>
+                <span class="non-renseigne"><i class="fas fa-minus"></i></span>
+              </ng-template>
+            </td>
+            <td>
+              <div *ngIf="isSlaDemarre(ticket); else slaNonDemarre">
+                <div
+                  class="sla-container"
+                  [attr.data-pourcentage]="calculateSlaPercentage(ticket)"
+                  [attr.data-priorite]="ticket.priorite"
+                >
+                  <div class="sla-bar">
+                    <div
+                      class="sla-progress"
+                      [ngClass]="getSlaClass(ticket)"
+                      [style.width.%]="calculateSlaPercentage(ticket)"
+                    ></div>
+                  </div>
+                  <div class="sla-info">
+                    <span class="sla-temps-restant"
+                      ><i class="far fa-clock"></i> {{ getTempsRestant(ticket) }}</span
+                    >
+                    <span class="sla-pourcentage">{{ calculateSlaPercentage(ticket) }}%</span>
+                  </div>
+                </div>
+              </div>
+              <ng-template #slaNonDemarre>
+                <div class="sla-non-demarre-container">
+                  <span class="sla-non-demarre-badge"
+                    ><i class="fas fa-pause-circle"></i> Non démarré</span
+                  >
+                </div>
+              </ng-template>
+            </td>
+            <td>
+              <div class="connexion-info">
+                <span class="connexion-date"
+                  ><i class="far fa-calendar-alt"></i>
+                  {{ formatShortDate(ticket.date_creation) }}</span
+                >
+              </div>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button
+                  class="action-btn view"
+                  (click)="openTicketDetails(ticket)"
+                  title="Voir les détails"
+                >
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button
+                  *ngIf="canEditTicketWithService(ticket)"
+                  class="action-btn edit"
+                  (click)="goToEditTicket(ticket)"
+                  [disabled]="!ticket?.id"
+                  title="Modifier"
+                >
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button
+                  *ngIf="canDeleteTicket(ticket)"
+                  class="action-btn delete"
+                  (click)="confirmDeleteTicket(ticket)"
+                  title="Supprimer"
+                >
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="currentPageItems().length === 0">
+            <td colspan="10" class="no-data">
+              <div class="empty-state">
+                <i class="fas fa-ticket-alt empty-icon"></i>
+                <h3>Aucun ticket trouvé</h3>
+                <p>Aucun ticket ne correspond à vos critères de recherche</p>
+                <button class="btn-primary" (click)="clearFilters()">
+                  <i class="fas fa-eraser"></i> Effacer les filtres
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMATION SUCCÈS -->
+  <div class="modal" *ngIf="showSuccessModal()">
+    <div class="modal-overlay" (click)="closeSuccessModal()"></div>
+    <div class="modal-container modal-sm">
+      <div class="modal-header" style="border-bottom-color: #28a745">
+        <h2 style="color: #28a745"><i class="fas fa-check-circle"></i> Succès</h2>
+        <button class="modal-close" (click)="closeSuccessModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body text-center">
+        <div style="font-size: 64px; margin-bottom: 20px; color: #28a745">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <p class="success-message" style="font-size: 16px; color: #212529; margin-bottom: 16px">
+          {{ successMessage() }}
+        </p>
+
+        <div *ngIf="successTicketNum()" class="ticket-number-display">
+          <span class="ticket-number-label"><i class="fas fa-hashtag"></i> N° ticket:</span>
+          <span class="ticket-number-value">{{ successTicketNum() }}</span>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px">
+          <button class="btn-secondary" (click)="closeSuccessModal()">
+            <i class="fas fa-times"></i> Fermer
+          </button>
+          <button
+            class="btn-primary"
+            (click)="redirectToTicketDetails()"
+            style="background: #0066b3"
+          >
+            <i class="fas fa-eye"></i> Voir le ticket
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE DE CONFIRMATION SUPPRESSION -->
+  <div class="modal" *ngIf="showDeleteModal()">
+    <div class="modal-overlay" (click)="cancelDelete()"></div>
+    <div class="modal-container modal-sm">
+      <div class="modal-header" style="border-bottom-color: #dc3545">
+        <h2 style="color: #dc3545"><i class="fas fa-trash-alt"></i> Confirmation</h2>
+        <button class="modal-close" (click)="cancelDelete()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body text-center">
+        <div style="font-size: 64px; margin-bottom: 20px; color: #dc3545">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <p
+          class="confirmation-message"
+          style="font-size: 16px; color: #212529; margin-bottom: 16px"
+        >
+          Êtes-vous sûr de vouloir supprimer le ticket
+        </p>
+
+        <div class="ticket-info-delete">
+          <div class="ticket-number-delete">
+            <span class="ticket-number-label"><i class="fas fa-hashtag"></i> N° ticket:</span>
+            <span class="ticket-number-value">{{
+              ticketToDelete()?.num_ticket || '#' + ticketToDelete()?.id
+            }}</span>
+          </div>
+          <div class="ticket-title-delete" *ngIf="ticketToDelete()?.titre">
+            "{{ ticketToDelete()?.titre }}"
+          </div>
+        </div>
+
+        <p style="font-size: 14px; color: #6c757d; margin-bottom: 20px; margin-top: 16px">
+          <i class="fas fa-exclamation-circle"></i> Cette action est irréversible.
+        </p>
+
+        <div style="display: flex; gap: 12px; justify-content: center">
+          <button class="btn-secondary" (click)="cancelDelete()" [disabled]="isDeleting()">
+            <i class="fas fa-times"></i> Annuler
+          </button>
+          <button class="btn-danger" (click)="deleteTicket()" [disabled]="isDeleting()">
+            <span *ngIf="!isDeleting()"><i class="fas fa-trash"></i> Supprimer</span>
+            <span *ngIf="isDeleting()">
+              <i class="fas fa-spinner fa-spin"></i> Suppression...
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE DÉTAILS DU TICKET -->
+  <div class="modal" *ngIf="showDetailsModal()">
+    <div class="modal-overlay" (click)="closeDetailsModal()"></div>
+    <div class="modal-container" style="max-width: 650px">
+      <div class="modal-header" style="border-bottom-color: #0066b3">
+        <h2 style="color: #0066b3; display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+          <i class="fas fa-ticket-alt"></i> Détails du ticket
+          <span class="ticket-header-number" *ngIf="selectedTicket()?.num_ticket">
+            {{ selectedTicket()?.num_ticket }}
+          </span>
+        </h2>
+        <button class="modal-close" (click)="closeDetailsModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div *ngIf="isLoadingDetails()" class="text-center" style="padding: 40px">
+          <div class="spinner"></div>
+          <p style="margin-top: 16px; color: #6c757d">Chargement des détails...</p>
+        </div>
+
+        <div *ngIf="!isLoadingDetails() && selectedTicket()" class="details-container">
+          <div class="details-header">
+            <div class="details-icon"><i class="fas fa-ticket-alt"></i></div>
+            <div class="details-title">
+              <h3>{{ selectedTicket()?.titre }}</h3>
+              <p class="details-id">
+                <span class="ticket-numero-detail">{{ selectedTicket()?.num_ticket }}</span>
+              </p>
+            </div>
+            <div class="details-badge">
+              <span class="statut-badge" [ngClass]="getStatutClass(selectedTicket()?.statut)">
+                <i class="fas" [ngClass]="getStatutIcon(selectedTicket()?.statut)"></i>
+                {{ getStatutLabel(selectedTicket()?.statut) }}
+              </span>
+              <span
+                class="priorite-badge"
+                [ngClass]="getPrioriteClass(selectedTicket()?.priorite)"
+                style="margin-left: 8px"
+              >
+                <i
+                  class="fas"
+                  [class.fa-flag]="selectedTicket()?.priorite === 'haute'"
+                  [class.fa-flag]="selectedTicket()?.priorite === 'moyenne'"
+                  [class.fa-flag-checkered]="selectedTicket()?.priorite === 'basse'"
+                ></i>
+                {{ selectedTicket()?.priorite }}
+              </span>
+            </div>
+          </div>
+
+          <div class="details-section">
+            <h4 class="details-section-title">
+              <i class="fas fa-info-circle"></i> Informations générales
+            </h4>
+            <div class="details-grid">
+              <div class="details-item">
+                <span class="details-label"><i class="fas fa-tag"></i> Type</span>
+                <span class="details-value">{{ selectedTicket()?.type || 'Non spécifié' }}</span>
+              </div>
+              <div class="details-item">
+                <span class="details-label"><i class="fas fa-folder"></i> Catégorie</span>
+                <span class="details-value">{{
+                  selectedTicket()?.categorie || 'Non spécifié'
+                }}</span>
+              </div>
+              <div class="details-item">
+                <span class="details-label"><i class="fas fa-user"></i> Créé par</span>
+                <span class="details-value">{{ selectedTicket()?.createur_nom || 'Inconnu' }}</span>
+              </div>
+              <div class="details-item">
+                <span class="details-label"
+                  ><i class="fas fa-calendar-plus"></i> Date création</span
+                >
+                <span class="details-value">{{
+                  formatShortDate(selectedTicket()?.date_creation)
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="details-section">
+            <h4 class="details-section-title"><i class="fas fa-align-left"></i> Description</h4>
+            <div class="details-card">
+              <p class="details-description">
+                {{ selectedTicket()?.description || 'Aucune description' }}
+              </p>
+            </div>
+          </div>
+
+          <div class="details-section">
+            <h4 class="details-section-title">
+              <i class="fas fa-map-marker-alt"></i> Localisation
+            </h4>
+            <div class="details-grid">
+              <div class="details-item" *ngIf="selectedTicket()?.entite_nom">
+                <span class="details-label"><i class="fas fa-building"></i> Entité</span>
+                <span class="details-value">{{ selectedTicket()?.entite_nom }}</span>
+              </div>
+              <div class="details-item" *ngIf="selectedTicket()?.element_nom">
+                <span class="details-label"><i class="fas fa-map-pin"></i> Élément</span>
+                <span class="details-value">{{ selectedTicket()?.element_nom }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="details-section">
+            <h4 class="details-section-title"><i class="fas fa-user"></i> Demandeur</h4>
+            <div class="details-card">
+              <div class="details-grid">
+                <div class="details-item">
+                  <span class="details-label"><i class="fas fa-user"></i> Nom complet</span>
+                  <span class="details-value"
+                    >{{ selectedTicket()?.prenom }} {{ selectedTicket()?.nom }}</span
+                  >
+                </div>
+                <div class="details-item">
+                  <span class="details-label"><i class="fas fa-envelope"></i> Email</span>
+                  <span class="details-value">{{
+                    selectedTicket()?.email || 'Non renseigné'
+                  }}</span>
+                </div>
+                <div class="details-item" *ngIf="selectedTicket()?.telephone">
+                  <span class="details-label"><i class="fas fa-phone"></i> Téléphone</span>
+                  <span class="details-value telephone-value">
+                    {{ formatTelephone(selectedTicket()?.telephone) }}
+                  </span>
+                </div>
+                <div class="details-item" *ngIf="!selectedTicket()?.telephone">
+                  <span class="details-label"><i class="fas fa-phone"></i> Téléphone</span>
+                  <span class="details-value text-muted"
+                    ><i class="fas fa-minus"></i> Non renseigné</span
+                  >
+                </div>
+                <div class="details-item" *ngIf="selectedTicket()?.adresse">
+                  <span class="details-label"><i class="fas fa-map-marker-alt"></i> Adresse</span>
+                  <span class="details-value">{{ selectedTicket()?.adresse }}</span>
+                </div>
+                <div class="details-item" *ngIf="selectedTicket()?.source_demande">
+                  <span class="details-label"><i class="fas fa-info-circle"></i> Source</span>
+                  <span class="details-value">{{ selectedTicket()?.source_demande }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="details-section" *ngIf="selectedTicket()?.commentaires?.length > 0">
+            <h4 class="details-section-title">
+              <i class="fas fa-comments"></i> Commentaires ({{
+                selectedTicket()?.commentaires?.length
+              }})
+            </h4>
+            <div class="comments-list">
+              <div *ngFor="let comment of selectedTicket()?.commentaires" class="comment-item">
+                <div class="comment-avatar"><i class="fas fa-user"></i></div>
+                <div class="comment-content">
+                  <div class="comment-header">
+                    <span class="comment-author">{{ comment.user }}</span>
+                    <span class="comment-date"
+                      ><i class="far fa-clock"></i> {{ formatShortDate(comment.date) }}</span
+                    >
+                  </div>
+                  <p class="comment-text">{{ comment.texte }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="details-section" *ngIf="!selectedTicket()?.commentaires?.length">
+            <p class="text-muted"><i class="fas fa-comment-slash"></i> Aucun commentaire</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="justify-content: center">
+        <button class="btn-secondary" (click)="closeDetailsModal()">
+          <i class="fas fa-times"></i> Fermer
+        </button>
+        <button
+          class="btn-primary"
+          (click)="goToEditTicket(selectedTicket()?.id); closeDetailsModal()"
+        >
+          <i class="fas fa-edit"></i> Modifier
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

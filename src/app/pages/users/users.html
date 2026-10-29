@@ -1,0 +1,1311 @@
+<div class="users-page">
+
+  <!-- ============================================ -->
+  <!-- EN-TÊTE -->
+  <!-- ============================================ -->
+  <div class="page-header">
+    <div class="header-left">
+      <div class="header-icon-wrapper">
+        <i class="fas fa-users-gear"></i>
+      </div>
+      <div class="header-content">
+        <h1 class="page-title">Gestion des utilisateurs</h1>
+        <p class="page-subtitle">
+          Gérez les comptes, rôles et permissions de votre plateforme
+        </p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- Export Dropdown -->
+      <div class="dropdown-wrapper">
+        <button class="btn-export" (click)="toggleExportMenu()" [class.active]="showExportMenu()">
+          <i class="fas fa-download"></i>
+          <span>Exporter</span>
+          <i class="fas fa-chevron-down arrow"></i>
+        </button>
+        <div class="dropdown-menu" *ngIf="showExportMenu()">
+          <div class="dropdown-header">
+            <i class="fas fa-file-export"></i>
+            <span>Format d'export</span>
+          </div>
+          <button class="dropdown-item excel" (click)="exportData('excel')">
+            <span class="icon-wrapper excel">
+              <i class="fas fa-file-excel"></i>
+            </span>
+            <div class="item-content">
+              <strong>Excel</strong>
+              <small>Format tableur</small>
+            </div>
+          </button>
+          <button class="dropdown-item pdf" (click)="exportData('pdf')">
+            <span class="icon-wrapper pdf">
+              <i class="fas fa-file-pdf"></i>
+            </span>
+            <div class="item-content">
+              <strong>PDF</strong>
+              <small>Document imprimable</small>
+            </div>
+          </button>
+          <button class="dropdown-item word" (click)="exportData('word')">
+            <span class="icon-wrapper word">
+              <i class="fas fa-file-word"></i>
+            </span>
+            <div class="item-content">
+              <strong>Word</strong>
+              <small>Document éditable</small>
+            </div>
+          </button>
+          <button class="dropdown-item csv" (click)="exportData('csv')">
+            <span class="icon-wrapper csv">
+              <i class="fas fa-file-csv"></i>
+            </span>
+            <div class="item-content">
+              <strong>CSV</strong>
+              <small>Données brutes</small>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-primary" (click)="openAddModal()">
+        <i class="fas fa-user-plus"></i>
+        <span>Nouvel utilisateur</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- STATISTIQUES -->
+  <!-- ============================================ -->
+  <div class="stats-grid">
+    <div class="stat-card total">
+      <div class="stat-icon">
+        <i class="fas fa-users"></i>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Total utilisateurs</span>
+        <span class="stat-value">{{ userStats().total }}</span>
+        <div class="stat-trend positive">
+          <i class="fas fa-arrow-up"></i>
+          <span>+{{ userStats().nouveaux }} ce mois</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card active">
+      <div class="stat-icon">
+        <i class="fas fa-user-check"></i>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Actifs</span>
+        <span class="stat-value">{{ userStats().actifs }}</span>
+        <div class="stat-progress">
+          <div class="progress-bar" [style.width.%]="actifsPercentage()"></div>
+        </div>
+        <span class="stat-percentage">{{ actifsPercentage() }}%</span>
+      </div>
+    </div>
+
+    <div class="stat-card admin">
+      <div class="stat-icon">
+        <i class="fas fa-user-shield"></i>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Administrateurs</span>
+        <span class="stat-value">{{ userStats().admins }}</span>
+        <div class="stat-progress">
+          <div class="progress-bar" [style.width.%]="adminsPercentage()"></div>
+        </div>
+        <span class="stat-percentage">{{ adminsPercentage() }}%</span>
+      </div>
+    </div>
+
+    <div class="stat-card inactive">
+      <div class="stat-icon">
+        <i class="fas fa-user-slash"></i>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Inactifs</span>
+        <span class="stat-value">{{ userStats().inactifs }}</span>
+        <div class="stat-progress">
+          <div class="progress-bar" [style.width.%]="inactifsPercentage()"></div>
+        </div>
+        <span class="stat-percentage">{{ inactifsPercentage() }}%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- BARRE DE FILTRES -->
+  <!-- ============================================ -->
+  <div class="filters-bar">
+    <div class="search-box">
+      <i class="fas fa-search"></i>
+      <input
+        type="text"
+        placeholder="Rechercher un utilisateur (nom, email, username...)"
+        (input)="onSearch($event)"
+        [value]="searchQuery()"
+      />
+      @if (searchQuery()) {
+        <button class="clear-btn" (click)="clearFilters()">
+          <i class="fas fa-times"></i>
+        </button>
+      }
+    </div>
+
+    <div class="filter-group">
+      <label><i class="fas fa-user-tag"></i> Profil</label>
+      <select (change)="onProfilChange($event)" [value]="selectedProfil()">
+        <option value="Tous">Tous les profils</option>
+        @for (profil of profils(); track profil) {
+          <option [value]="profil">{{ getProfilDisplayName(profil) }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label><i class="fas fa-circle"></i> Statut</label>
+      <select (change)="onStatutChange($event)" [value]="selectedStatut()">
+        <option value="Tous">Tous les statuts</option>
+        <option value="actif">Actif</option>
+        <option value="inactif">Inactif</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label><i class="fas fa-building"></i> Entité</label>
+      <select (change)="onEntiteChange($event)" [value]="selectedEntite()">
+        <option value="Toutes">Toutes les entités</option>
+        @for (entite of entites(); track entite.id) {
+          <option [value]="entite.nom">{{ entite.nom }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="view-toggle">
+      <button
+        class="toggle-btn"
+        [class.active]="viewMode() === 'list'"
+        (click)="viewMode.set('list')"
+        title="Vue liste"
+      >
+        <i class="fas fa-list"></i>
+      </button>
+      <button
+        class="toggle-btn"
+        [class.active]="viewMode() === 'grid'"
+        (click)="viewMode.set('grid')"
+        title="Vue cartes"
+      >
+        <i class="fas fa-th-large"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtres actifs -->
+  @if (
+    searchQuery() ||
+    selectedProfil() !== 'Tous' ||
+    selectedStatut() !== 'Tous' ||
+    selectedEntite() !== 'Toutes'
+  ) {
+    <div class="active-filters">
+      <span class="label">
+        <i class="fas fa-filter"></i>
+        Filtres actifs :
+      </span>
+      @if (searchQuery()) {
+        <span class="filter-chip" (click)="clearFilters()">
+          <i class="fas fa-search"></i> {{ searchQuery() }}
+          <i class="fas fa-times"></i>
+        </span>
+      }
+      @if (selectedProfil() !== 'Tous') {
+        <span class="filter-chip" (click)="onProfilChange({ target: { value: 'Tous' } })">
+          <i class="fas fa-user-tag"></i> {{ getProfilDisplayName(selectedProfil()) }}
+          <i class="fas fa-times"></i>
+        </span>
+      }
+      @if (selectedStatut() !== 'Tous') {
+        <span class="filter-chip" (click)="onStatutChange({ target: { value: 'Tous' } })">
+          <i class="fas fa-circle"></i> {{ selectedStatut() }}
+          <i class="fas fa-times"></i>
+        </span>
+      }
+      @if (selectedEntite() !== 'Toutes') {
+        <span class="filter-chip" (click)="onEntiteChange({ target: { value: 'Toutes' } })">
+          <i class="fas fa-building"></i> {{ selectedEntite() }}
+          <i class="fas fa-times"></i>
+        </span>
+      }
+      <button class="clear-all" (click)="clearFilters()">
+        <i class="fas fa-trash-alt"></i> Tout effacer
+      </button>
+    </div>
+  }
+
+  <!-- ============================================ -->
+  <!-- INFO RÉSULTATS + PAGINATION -->
+  <!-- ============================================ -->
+  <div class="results-bar">
+    <div class="results-info">
+      <i class="fas fa-chart-bar"></i>
+      <span><strong>{{ totalItems() }}</strong> utilisateur{{ totalItems() > 1 ? 's' : '' }} trouvé{{ totalItems() > 1 ? 's' : '' }}</span>
+    </div>
+
+    @if (totalPages() > 1 || itemsPerPage() !== 10) {
+      <div class="pagination-controls">
+        <div class="items-per-page">
+          <label>Afficher</label>
+          <select (change)="changeItemsPerPage($event)" [value]="itemsPerPage()">
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+          <span>par page</span>
+        </div>
+
+        @if (totalPages() > 1) {
+          <div class="pagination">
+            <button
+              class="page-btn"
+              (click)="changePage(1)"
+              [disabled]="currentPage() === 1"
+            >
+              <i class="fas fa-angle-double-left"></i>
+            </button>
+            <button
+              class="page-btn"
+              (click)="changePage(currentPage() - 1)"
+              [disabled]="currentPage() === 1"
+            >
+              <i class="fas fa-angle-left"></i>
+            </button>
+
+            @for (page of pageNumbers(); track page) {
+              @if (page === '...') {
+                <span class="page-dots">...</span>
+              } @else {
+                <button
+                  class="page-btn"
+                  [class.active]="page === currentPage()"
+                  (click)="changePage($any(page))"
+                >
+                  {{ page }}
+                </button>
+              }
+            }
+
+            <button
+              class="page-btn"
+              (click)="changePage(currentPage() + 1)"
+              [disabled]="currentPage() === totalPages()"
+            >
+              <i class="fas fa-angle-right"></i>
+            </button>
+            <button
+              class="page-btn"
+              (click)="changePage(totalPages())"
+              [disabled]="currentPage() === totalPages()"
+            >
+              <i class="fas fa-angle-double-right"></i>
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- ============================================ -->
+  <!-- CHARGEMENT -->
+  <!-- ============================================ -->
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Chargement des utilisateurs...</p>
+    </div>
+  }
+
+  <!-- ============================================ -->
+  <!-- VUE LISTE -->
+  <!-- ============================================ -->
+  @if (!isLoading() && viewMode() === 'list') {
+    @if (users().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <i class="fas fa-users-slash"></i>
+        </div>
+        <h3>Aucun utilisateur trouvé</h3>
+        <p>Aucun utilisateur ne correspond à vos critères de recherche</p>
+        <button class="btn-primary" (click)="clearFilters()">
+          <i class="fas fa-redo"></i> Réinitialiser les filtres
+        </button>
+      </div>
+    } @else {
+      <div class="users-table-wrapper">
+        <table class="users-table">
+          <thead>
+            <tr>
+              <th class="col-user sortable" (click)="sortBy('prenom')">
+                <span>Utilisateur</span>
+                <i class="fas"
+                   [class.fa-sort]="sortField() !== 'prenom'"
+                   [class.fa-sort-up]="sortField() === 'prenom' && sortDirection() === 'asc'"
+                   [class.fa-sort-down]="sortField() === 'prenom' && sortDirection() === 'desc'"></i>
+              </th>
+              <th class="col-profil sortable" (click)="sortBy('profil')">
+                <span>Profil</span>
+                <i class="fas"
+                   [class.fa-sort]="sortField() !== 'profil'"
+                   [class.fa-sort-up]="sortField() === 'profil' && sortDirection() === 'asc'"
+                   [class.fa-sort-down]="sortField() === 'profil' && sortDirection() === 'desc'"></i>
+              </th>
+              <th class="col-entites">
+                <span>Entités</span>
+              </th>
+              <th class="col-statut sortable" (click)="sortBy('statut')">
+                <span>Statut</span>
+                <i class="fas"
+                   [class.fa-sort]="sortField() !== 'statut'"
+                   [class.fa-sort-up]="sortField() === 'statut' && sortDirection() === 'asc'"
+                   [class.fa-sort-down]="sortField() === 'statut' && sortDirection() === 'desc'"></i>
+              </th>
+              <th class="col-connexion sortable" (click)="sortBy('derniere_connexion')">
+                <span>Dernière connexion</span>
+                <i class="fas"
+                   [class.fa-sort]="sortField() !== 'derniere_connexion'"
+                   [class.fa-sort-up]="sortField() === 'derniere_connexion' && sortDirection() === 'asc'"
+                   [class.fa-sort-down]="sortField() === 'derniere_connexion' && sortDirection() === 'desc'"></i>
+              </th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of currentPageUsers(); track user.id) {
+              <tr class="user-row">
+                <td class="col-user">
+                  <div class="user-cell">
+                    <div class="user-avatar-wrapper">
+                      <img [src]="getAvatarUrl(user)" [alt]="user.prenom + ' ' + user.nom" />
+                      <span class="status-dot" [class.active]="user.statut === 'actif'"></span>
+                    </div>
+                    <div class="user-info">
+                      <span class="user-name">{{ user.prenom }} {{ user.nom }}</span>
+                      <span class="user-email">
+                        <i class="fas fa-envelope"></i> {{ user.email }}
+                      </span>
+                      <span class="user-username">
+                        <i class="fas fa-at"></i> {{ user.username }}
+                      </span>
+                    </div>
+                  </div>
+                </td>
+
+                <td class="col-profil">
+                  <span class="profil-badge" [ngClass]="getProfilClass(user.profil)">
+                    <i class="fas"
+                       [class.fa-crown]="user.profil === 'superadmin'"
+                       [class.fa-user-tie]="user.profil === 'backoffice'"
+                       [class.fa-user]="user.profil === 'selfservice'"
+                       [class.fa-user-cog]="user.profil === 'dlgas' || user.profil === 'consultation'"></i>
+                    {{ getProfilDisplayName(user.profil) }}
+                  </span>
+                </td>
+
+                <td class="col-entites">
+                  @if (user.entites && user.entites.length > 0) {
+                    <div class="entites-stack">
+                      @for (entite of user.entites.slice(0, 2); track entite.id) {
+                        <span class="entite-chip" [ngClass]="'level-' + (entite.niveau || 0)">
+                          <span class="entite-dot"></span>
+                          {{ entite.nom }}
+                        </span>
+                      }
+                      @if (user.entites.length > 2) {
+                        <span class="entite-chip more" [title]="user.entites.length + ' entités associées'">
+                          +{{ user.entites.length - 2 }}
+                        </span>
+                      }
+                    </div>
+                  } @else {
+                    <span class="no-entite">
+                      <i class="fas fa-minus-circle"></i> Aucune
+                    </span>
+                  }
+                </td>
+
+                <td class="col-statut">
+                  <span class="status-badge" [ngClass]="getStatutClass(user.statut)">
+                    <span class="status-dot" [ngClass]="user.statut"></span>
+                    {{ user.statut }}
+                  </span>
+                </td>
+
+                <td class="col-connexion">
+                  @if (user.derniere_connexion) {
+                    <div class="connexion-cell">
+                      <span class="connexion-date">
+                        <i class="fas fa-clock"></i>
+                        {{ getTimeSince(user.derniere_connexion) }}
+                      </span>
+                      <span class="connexion-full">
+                        {{ formatShortDate(user.derniere_connexion) }}
+                      </span>
+                    </div>
+                  } @else {
+                    <span class="never-connected">
+                      <i class="fas fa-clock"></i> Jamais connecté
+                    </span>
+                  }
+                </td>
+
+                <td class="col-actions">
+                  <div class="actions-group">
+                    <button class="action-btn view" (click)="openUserDetails(user)" title="Voir détails">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="action-btn edit" (click)="openEditModal(user)" title="Modifier">
+                      <i class="fas fa-pen"></i>
+                    </button>
+                    <button
+                      class="action-btn toggle"
+                      [class.deactivate]="user.statut === 'actif'"
+                      (click)="openStatusConfirmModal(user)"
+                      [disabled]="user.profil === 'superadmin' && user.statut === 'actif'"
+                      [title]="user.statut === 'actif' ? 'Désactiver' : 'Activer'"
+                    >
+                      <i class="fas"
+                         [class.fa-pause]="user.statut === 'actif'"
+                         [class.fa-play]="user.statut !== 'actif'"></i>
+                    </button>
+                    <button class="action-btn delete" (click)="openDeleteModal(user)" title="Supprimer">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ============================================ -->
+  <!-- VUE GRILLE -->
+  <!-- ============================================ -->
+  @if (!isLoading() && viewMode() === 'grid') {
+    @if (users().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <i class="fas fa-users-slash"></i>
+        </div>
+        <h3>Aucun utilisateur trouvé</h3>
+        <p>Aucun utilisateur ne correspond à vos critères de recherche</p>
+        <button class="btn-primary" (click)="clearFilters()">
+          <i class="fas fa-redo"></i> Réinitialiser les filtres
+        </button>
+      </div>
+    } @else {
+      <div class="users-grid">
+        @for (user of currentPageUsers(); track user.id) {
+          <div class="user-card" [ngClass]="getStatutClass(user.statut)">
+            <div class="card-header">
+              <div class="card-status-badge" [ngClass]="user.statut">
+                <span class="status-dot" [ngClass]="user.statut"></span>
+                {{ user.statut }}
+              </div>
+              <div class="card-actions">
+                <button class="icon-btn" (click)="openUserDetails(user)" title="Détails">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button class="icon-btn" (click)="openEditModal(user)" title="Modifier">
+                  <i class="fas fa-pen"></i>
+                </button>
+                <button class="icon-btn delete" (click)="openDeleteModal(user)" title="Supprimer">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div class="card-avatar-wrapper">
+                <img [src]="getAvatarUrl(user)" [alt]="user.prenom + ' ' + user.nom" />
+                <div class="avatar-ring" [ngClass]="user.statut"></div>
+              </div>
+
+              <h3 class="card-name">{{ user.prenom }} {{ user.nom }}</h3>
+              <p class="card-email">
+                <i class="fas fa-envelope"></i>
+                {{ user.email }}
+              </p>
+
+              <div class="card-badges">
+                <span class="profil-badge" [ngClass]="getProfilClass(user.profil)">
+                  <i class="fas"
+                     [class.fa-crown]="user.profil === 'superadmin'"
+                     [class.fa-user-tie]="user.profil === 'backoffice'"
+                     [class.fa-user]="user.profil === 'selfservice'"
+                     [class.fa-user-cog]="user.profil === 'dlgas' || user.profil === 'consultation'"></i>
+                  {{ getProfilDisplayName(user.profil) }}
+                </span>
+              </div>
+
+              <div class="card-entites">
+                <div class="entites-header">
+                  <i class="fas fa-building"></i>
+                  <span>Entités</span>
+                </div>
+                @if (user.entites && user.entites.length > 0) {
+                  <div class="entites-chips">
+                    @for (entite of user.entites.slice(0, 3); track entite.id) {
+                      <span class="entite-chip small" [ngClass]="'level-' + (entite.niveau || 0)">
+                        {{ entite.nom }}
+                      </span>
+                    }
+                    @if (user.entites.length > 3) {
+                      <span class="entite-chip more small">
+                        +{{ user.entites.length - 3 }}
+                      </span>
+                    }
+                  </div>
+                } @else {
+                  <span class="no-entite small">
+                    <i class="fas fa-minus-circle"></i> Aucune entité
+                  </span>
+                }
+              </div>
+
+              <div class="card-meta">
+                <div class="meta-item">
+                  <i class="fas fa-clock"></i>
+                  <span>{{ getTimeSince(user.derniere_connexion) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <button
+                class="status-toggle-btn"
+                [class.active]="user.statut === 'actif'"
+                (click)="openStatusConfirmModal(user)"
+                [disabled]="user.profil === 'superadmin' && user.statut === 'actif'"
+              >
+                <i class="fas"
+                   [class.fa-pause]="user.statut === 'actif'"
+                   [class.fa-play]="user.statut !== 'actif'"></i>
+                {{ user.statut === 'actif' ? 'Désactiver' : 'Activer' }}
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  <!-- ============================================ -->
+  <!-- MODAL AJOUT/MODIFICATION/VUE -->
+  <!-- ============================================ -->
+  @if (isModalOpen()) {
+    <div class="modal-overlay" (click)="closeModal()"></div>
+    <div class="modal user-modal" (click)="$event.stopPropagation()">
+      <div class="modal-container">
+
+        <!-- Header -->
+        <div class="modal-header" [ngClass]="'mode-' + modalMode()">
+          <div class="header-icon-wrapper">
+            <i class="fas"
+               [class.fa-user-plus]="modalMode() === 'add'"
+               [class.fa-user-pen]="modalMode() === 'edit'"
+               [class.fa-user-circle]="modalMode() === 'view'"></i>
+          </div>
+          <div class="header-info">
+            <h2>{{ modalTitle() }}</h2>
+            <p>
+              @if (modalMode() === 'add') {
+                Créez un nouveau compte utilisateur
+              } @else if (modalMode() === 'edit') {
+                Modifiez les informations de cet utilisateur
+              } @else {
+                Consultez les informations de cet utilisateur
+              }
+            </p>
+          </div>
+          <button class="close-btn" (click)="closeModal()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body">
+          <form [formGroup]="userForm" (ngSubmit)="saveUser()">
+
+            <!-- Section 1 : Informations personnelles -->
+            <div class="form-section">
+              <div class="section-header">
+                <div class="section-icon primary">
+                  <i class="fas fa-user"></i>
+                </div>
+                <div class="section-info">
+                  <h3>Informations personnelles</h3>
+                  <p>Identité et coordonnées de l'utilisateur</p>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <!-- Nom -->
+                <div class="form-field">
+                  <label class="field-label">
+                    Nom <span class="required">*</span>
+                  </label>
+                  <div class="input-group">
+                    <i class="fas fa-user input-icon"></i>
+                    <input
+                      type="text"
+                      formControlName="nom"
+                      placeholder="Ex: NDIAYE"
+                      [class.error]="userForm.get('nom')?.invalid && userForm.get('nom')?.touched"
+                      [readonly]="modalMode() === 'view'"
+                      (input)="onNomPrenomChange()"
+                    />
+                    @if (userForm.get('nom')?.valid && userForm.get('nom')?.touched) {
+                      <i class="fas fa-check valid-icon"></i>
+                    }
+                  </div>
+                  @if (userForm.get('nom')?.invalid && userForm.get('nom')?.touched) {
+                    <div class="error-text">
+                      <i class="fas fa-exclamation-circle"></i>
+                      @if (userForm.get('nom')?.errors?.['required']) {
+                        <span>Le nom est requis</span>
+                      } @else if (userForm.get('nom')?.errors?.['minlength']) {
+                        <span>Minimum 2 caractères</span>
+                      }
+                    </div>
+                  }
+                </div>
+
+                <!-- Prénom -->
+                <div class="form-field">
+                  <label class="field-label">
+                    Prénom <span class="required">*</span>
+                  </label>
+                  <div class="input-group">
+                    <i class="fas fa-user input-icon"></i>
+                    <input
+                      type="text"
+                      formControlName="prenom"
+                      placeholder="Ex: IBRAHIMA"
+                      [class.error]="userForm.get('prenom')?.invalid && userForm.get('prenom')?.touched"
+                      [readonly]="modalMode() === 'view'"
+                      (input)="onNomPrenomChange()"
+                    />
+                    @if (userForm.get('prenom')?.valid && userForm.get('prenom')?.touched) {
+                      <i class="fas fa-check valid-icon"></i>
+                    }
+                  </div>
+                  @if (userForm.get('prenom')?.invalid && userForm.get('prenom')?.touched) {
+                    <div class="error-text">
+                      <i class="fas fa-exclamation-circle"></i>
+                      <span>Le prénom est requis</span>
+                    </div>
+                  }
+                </div>
+
+                <!-- Email -->
+                <div class="form-field">
+                  <label class="field-label">
+                    Email <span class="required">*</span>
+                  </label>
+                  <div class="input-group">
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input
+                      type="email"
+                      formControlName="email"
+                      placeholder="email@exemple.com"
+                      [class.error]="userForm.get('email')?.invalid && userForm.get('email')?.touched"
+                      [readonly]="modalMode() === 'view'"
+                    />
+                  </div>
+                  @if (userForm.get('email')?.invalid && userForm.get('email')?.touched) {
+                    <div class="error-text">
+                      <i class="fas fa-exclamation-circle"></i>
+                      <span>Email invalide</span>
+                    </div>
+                  }
+                </div>
+
+                <!-- Téléphone -->
+                <div class="form-field">
+                  <label class="field-label">
+                    Téléphone <span class="required">*</span>
+                  </label>
+                  <div class="input-group">
+                    <i class="fas fa-phone input-icon"></i>
+                    <input
+                      type="tel"
+                      formControlName="telephone"
+                      placeholder="77 123 45 67"
+                      [class.error]="userForm.get('telephone')?.invalid && userForm.get('telephone')?.touched"
+                      [readonly]="modalMode() === 'view'"
+                    />
+                  </div>
+                  @if (userForm.get('telephone')?.invalid && userForm.get('telephone')?.touched) {
+                    <div class="error-text">
+                      <i class="fas fa-exclamation-circle"></i>
+                      <span>Numéro invalide (9-10 chiffres)</span>
+                    </div>
+                  }
+                </div>
+
+                <!-- Username -->
+                <div class="form-field full-width">
+                  <label class="field-label">
+                    Nom d'utilisateur <span class="required">*</span>
+                    @if (modalMode() === 'add') {
+                      <span class="field-hint">
+                        <i class="fas fa-magic"></i> Généré automatiquement
+                      </span>
+                    }
+                  </label>
+                  <div class="input-group">
+                    <i class="fas fa-at input-icon"></i>
+                    <input
+                      type="text"
+                      formControlName="username"
+                      placeholder="nom.prenom"
+                      [class.error]="userForm.get('username')?.invalid && userForm.get('username')?.touched"
+                      [readonly]="modalMode() === 'view'"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 2 : Sécurité -->
+            @if (modalMode() === 'add' || modalMode() === 'edit') {
+              <div class="form-section">
+                <div class="section-header">
+                  <div class="section-icon warning">
+                    <i class="fas fa-shield-halved"></i>
+                  </div>
+                  <div class="section-info">
+                    <h3>Sécurité</h3>
+                    <p>
+                      @if (modalMode() === 'add') {
+                        Définissez un mot de passe sécurisé
+                      } @else {
+                        Laissez vide pour conserver le mot de passe actuel
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <!-- Mot de passe -->
+                  <div class="form-field">
+                    <label class="field-label">
+                      Mot de passe
+                      @if (modalMode() === 'add') {
+                        <span class="required">*</span>
+                      } @else {
+                        <span class="field-hint">(optionnel)</span>
+                      }
+                    </label>
+                    <div class="input-group">
+                      <i class="fas fa-lock input-icon"></i>
+                      <input
+                        [type]="showPassword() ? 'text' : 'password'"
+                        formControlName="password"
+                        placeholder="••••••••"
+                        [class.error]="userForm.get('password')?.invalid && userForm.get('password')?.touched"
+                      />
+                      <button type="button" class="toggle-password" (click)="showPassword.set(!showPassword())">
+                        <i class="fas" [class.fa-eye]="!showPassword()" [class.fa-eye-slash]="showPassword()"></i>
+                      </button>
+                    </div>
+                    @if (modalMode() === 'add' && userForm.get('password')?.value) {
+                      <div class="password-strength">
+                        <div class="strength-bar">
+                          <div class="strength-fill" [style.width.%]="(getPasswordStrength() / 4) * 100"></div>
+                        </div>
+                        <span class="strength-text">{{ getPasswordStrengthLabel() }}</span>
+                      </div>
+                    }
+                  </div>
+
+                  <!-- Confirmation -->
+                  <div class="form-field">
+                    <label class="field-label">
+                      Confirmer le mot de passe
+                      @if (modalMode() === 'add') {
+                        <span class="required">*</span>
+                      } @else {
+                        <span class="field-hint">(optionnel)</span>
+                      }
+                    </label>
+                    <div class="input-group">
+                      <i class="fas fa-lock input-icon"></i>
+                      <input
+                        [type]="showPasswordConfirm() ? 'text' : 'password'"
+                        formControlName="password_confirmation"
+                        placeholder="••••••••"
+                      />
+                      <button type="button" class="toggle-password" (click)="showPasswordConfirm.set(!showPasswordConfirm())">
+                        <i class="fas" [class.fa-eye]="!showPasswordConfirm()" [class.fa-eye-slash]="showPasswordConfirm()"></i>
+                      </button>
+                    </div>
+                    @if (userForm.errors?.['passwordMismatch'] && userForm.get('password_confirmation')?.touched) {
+                      <div class="error-text">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>Les mots de passe ne correspondent pas</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- Section 3 : Rôle et accès -->
+            <div class="form-section">
+              <div class="section-header">
+                <div class="section-icon info">
+                  <i class="fas fa-user-gear"></i>
+                </div>
+                <div class="section-info">
+                  <h3>Rôle et accès</h3>
+                  <p>Définissez le rôle et les permissions de l'utilisateur</p>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <!-- Profil -->
+                <div class="form-field">
+                  <label class="field-label">
+                    Profil <span class="required">*</span>
+                  </label>
+                  <div class="input-group">
+                    <i class="fas fa-user-tag input-icon"></i>
+                    <select formControlName="profil">
+                      <option value="">-- Sélectionner --</option>
+                      <option value="superadmin">Super Administrateur</option>
+                      <option value="backoffice">Backoffice</option>
+                      <option value="selfservice">Self Service</option>
+                      <option value="dlgas">Sous-traitant / DLGAS</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Statut -->
+                @if (modalMode() !== 'add') {
+                  <div class="form-field">
+                    <label class="field-label">Statut</label>
+                    <div class="input-group">
+                      <i class="fas fa-circle input-icon"></i>
+                      <select formControlName="statut">
+                        <option value="actif">Actif</option>
+                        <option value="inactif">Inactif</option>
+                        <option value="suspendu">Suspendu</option>
+                      </select>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <!-- Entités -->
+              <div class="entities-section">
+                <div class="entities-header">
+                  <div class="header-left">
+                    <i class="fas fa-building"></i>
+                    <span>Entités associées <span class="required">*</span></span>
+                  </div>
+                  @if (selectedEntitesList().length > 0) {
+                    <span class="count-badge">
+                      {{ selectedEntitesList().length }} sélectionnée{{ selectedEntitesList().length > 1 ? 's' : '' }}
+                    </span>
+                  }
+                </div>
+
+                @if (modalMode() !== 'view') {
+                  <div class="entities-toolbar">
+                    <button type="button" class="btn-toolbar select-all" (click)="selectAllEntites()">
+                      <i class="fas fa-check-double"></i> Tout
+                    </button>
+                    <button type="button" class="btn-toolbar deselect-all" (click)="deselectAllEntites()">
+                      <i class="fas fa-times"></i> Aucun
+                    </button>
+                  </div>
+                }
+
+                <div class="entities-list">
+                  @for (entite of entitesFormatees(); track entite.id) {
+                    <label class="entity-item" [class.selected]="isEntiteSelected(entite.id)">
+                      <input
+                        type="checkbox"
+                        [checked]="isEntiteSelected(entite.id)"
+                        (change)="onEntiteCheckboxChange($event, entite.id)"
+                      />
+                      <span class="checkbox">
+                        <i class="fas fa-check"></i>
+                      </span>
+                      <span class="entity-icon" [ngClass]="'level-' + entite.niveau">
+                        <i class="fas"
+                           [class.fa-building]="entite.niveau === 0"
+                           [class.fa-folder]="entite.niveau === 1"
+                           [class.fa-folder-open]="entite.niveau >= 2"></i>
+                      </span>
+                      <div class="entity-info">
+                        <span class="entity-name">{{ entite.nom }}</span>
+                        @if (entite.chemin_complet && entite.chemin_complet !== entite.nom) {
+                          <span class="entity-path">{{ entite.chemin_complet }}</span>
+                        }
+                      </div>
+                      <span class="entity-level" [ngClass]="'level-' + entite.niveau">
+                        N{{ entite.niveau }}
+                      </span>
+                    </label>
+                  }
+                </div>
+
+                @if (selectedEntitesList().length > 0) {
+                  <div class="selected-summary">
+                    <div class="summary-header">
+                      <i class="fas fa-check-circle"></i>
+                      <span>Sélection actuelle</span>
+                    </div>
+                    <div class="summary-chips">
+                      @for (entite of selectedEntitesList(); track entite.id) {
+                        <span class="summary-chip">
+                          {{ entite.nom }}
+                          @if (modalMode() !== 'view') {
+                            <button type="button" (click)="removeEntite(entite.id)">
+                              <i class="fas fa-times"></i>
+                            </button>
+                          }
+                        </span>
+                      }
+                    </div>
+                  </div>
+                } @else if (modalMode() !== 'view') {
+                  <div class="entities-warning">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Veuillez sélectionner au moins une entité</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Erreur globale -->
+            @if (submitError()) {
+              <div class="global-error">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>{{ submitError() }}</span>
+              </div>
+            }
+          </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeModal()">
+            <i class="fas fa-times"></i>
+            {{ modalMode() === 'view' ? 'Fermer' : 'Annuler' }}
+          </button>
+
+          @if (modalMode() === 'view') {
+            <button type="button" class="btn btn-warning" (click)="openEditModal(selectedUser())">
+              <i class="fas fa-pen"></i>
+              Modifier
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="btn btn-primary"
+              (click)="saveUser()"
+              [disabled]="userForm.invalid || isSaving()"
+            >
+              @if (isSaving()) {
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>{{ modalMode() === 'add' ? 'Création...' : 'Enregistrement...' }}</span>
+              } @else {
+                <i class="fas" [class.fa-user-plus]="modalMode() === 'add'" [class.fa-save]="modalMode() === 'edit'"></i>
+                <span>{{ modalMode() === 'add' ? 'Créer l\'utilisateur' : 'Enregistrer' }}</span>
+              }
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================ -->
+  <!-- MODAL SUPPRESSION -->
+  <!-- ============================================ -->
+  @if (isDeleteModalOpen()) {
+    <div class="modal-overlay" (click)="closeDeleteModal()"></div>
+    <div class="modal confirm-modal">
+      <div class="modal-container confirm-container">
+        <div class="confirm-icon delete">
+          <i class="fas fa-user-slash"></i>
+        </div>
+        <div class="confirm-header">
+          <h2>Confirmer la suppression</h2>
+          <button class="close-btn" (click)="closeDeleteModal()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="confirm-body">
+          <p>Êtes-vous sûr de vouloir supprimer l'utilisateur</p>
+          <div class="user-preview">
+            <div class="preview-avatar">
+              <img [src]="getAvatarUrl(selectedUser())" [alt]="selectedUser()?.prenom + ' ' + selectedUser()?.nom" />
+            </div>
+            <div class="preview-info">
+              <strong>{{ selectedUser()?.prenom }} {{ selectedUser()?.nom }}</strong>
+              <span>{{ selectedUser()?.email }}</span>
+            </div>
+          </div>
+          <div class="warning-box">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Cette action est irréversible.</span>
+          </div>
+        </div>
+        <div class="confirm-footer">
+          <button class="btn btn-secondary" (click)="closeDeleteModal()">
+            <i class="fas fa-times"></i> Annuler
+          </button>
+          <button class="btn btn-danger" (click)="deleteUser()">
+            <i class="fas fa-trash"></i> Supprimer
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================ -->
+  <!-- MODAL SUCCÈS -->
+  <!-- ============================================ -->
+  @if (showSuccessModal()) {
+    <div class="modal-overlay" (click)="closeSuccessModal()"></div>
+    <div class="modal confirm-modal">
+      <div class="modal-container confirm-container success">
+        <div class="confirm-icon success">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="confirm-header">
+          <h2>Opération réussie</h2>
+        </div>
+        <div class="confirm-body">
+          <p class="success-text">{{ successMessage() }}</p>
+        </div>
+        <div class="confirm-footer">
+          <button class="btn btn-primary" (click)="closeSuccessModal()">
+            <i class="fas fa-check"></i> Compris
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================ -->
+  <!-- MODAL DÉTAILS UTILISATEUR -->
+  <!-- ============================================ -->
+  @if (isDetailsModalOpen()) {
+    <div class="modal-overlay" (click)="closeDetailsModal()"></div>
+    <div class="modal details-modal">
+      <div class="modal-container details-container">
+        <div class="details-header">
+          <h2><i class="fas fa-user-circle"></i> Détails de l'utilisateur</h2>
+          <button class="close-btn" (click)="closeDetailsModal()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="details-body">
+          @if (isLoadingDetails()) {
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Chargement des détails...</p>
+            </div>
+          } @else if (selectedUserDetails()) {
+            <!-- Header avec avatar -->
+            <div class="user-profile-header">
+              <div class="profile-avatar-large">
+                <img [src]="getAvatarUrl(selectedUserDetails())" [alt]="selectedUserDetails()?.prenom + ' ' + selectedUserDetails()?.nom" />
+              </div>
+              <div class="profile-info">
+                <h3>{{ selectedUserDetails()?.prenom }} {{ selectedUserDetails()?.nom }}</h3>
+                <p class="profile-username">
+                  <i class="fas fa-at"></i> {{ selectedUserDetails()?.username }}
+                </p>
+                <div class="profile-badges">
+                  <span class="profil-badge" [ngClass]="getProfilClass(selectedUserDetails()?.profil)">
+                    {{ getProfilDisplayName(selectedUserDetails()?.profil) }}
+                  </span>
+                  <span class="status-badge" [ngClass]="getStatutClass(selectedUserDetails()?.statut)">
+                    <span class="status-dot" [ngClass]="selectedUserDetails()?.statut"></span>
+                    {{ selectedUserDetails()?.statut }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Infos personnelles -->
+            <div class="details-section">
+              <h4 class="details-section-title">
+                <i class="fas fa-address-card"></i> Informations personnelles
+              </h4>
+              <div class="details-grid">
+                <div class="details-item">
+                  <span class="details-label">ID</span>
+                  <span class="details-value">#{{ selectedUserDetails()?.id }}</span>
+                </div>
+                <div class="details-item">
+                  <span class="details-label">Nom complet</span>
+                  <span class="details-value">{{ selectedUserDetails()?.prenom }} {{ selectedUserDetails()?.nom }}</span>
+                </div>
+                <div class="details-item">
+                  <span class="details-label">Email</span>
+                  <span class="details-value">{{ selectedUserDetails()?.email }}</span>
+                </div>
+                <div class="details-item">
+                  <span class="details-label">Téléphone</span>
+                  <span class="details-value">{{ selectedUserDetails()?.telephone || 'Non renseigné' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Entités -->
+            <div class="details-section">
+              <h4 class="details-section-title">
+                <i class="fas fa-building"></i> Entités associées
+              </h4>
+              @if (selectedUserDetails()?.entites?.length > 0) {
+                <div class="entites-detail-list">
+                  @for (entite of selectedUserDetails()?.entites; track entite.id) {
+                    <div class="entite-detail-card">
+                      <span class="entity-icon" [ngClass]="'level-' + entite.niveau">
+                        <i class="fas"
+                           [class.fa-building]="entite.niveau === 0"
+                           [class.fa-folder]="entite.niveau === 1"
+                           [class.fa-folder-open]="entite.niveau >= 2"></i>
+                      </span>
+                      <div class="entity-info">
+                        <strong>{{ entite.nom }}</strong>
+                        @if (entite.chemin_complet) {
+                          <small>{{ entite.chemin_complet }}</small>
+                        }
+                      </div>
+                      <span class="entity-level" [ngClass]="'level-' + entite.niveau">
+                        Niveau {{ entite.niveau }}
+                      </span>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="no-data"><i class="fas fa-minus-circle"></i> Aucune entité associée</p>
+              }
+            </div>
+
+            <!-- Dates -->
+            <div class="details-section">
+              <h4 class="details-section-title">
+                <i class="fas fa-clock"></i> Dates
+              </h4>
+              <div class="details-grid">
+                <div class="details-item">
+                  <span class="details-label">Date de création</span>
+                  <span class="details-value">{{ formatDate(selectedUserDetails()?.created_at) }}</span>
+                </div>
+                <div class="details-item">
+                  <span class="details-label">Dernière modification</span>
+                  <span class="details-value">{{ formatDate(selectedUserDetails()?.updated_at) || '-' }}</span>
+                </div>
+                <div class="details-item">
+                  <span class="details-label">Dernière connexion</span>
+                  <span class="details-value">
+                    {{ selectedUserDetails()?.derniere_connexion ? getTimeSince(selectedUserDetails()?.derniere_connexion) : 'Jamais' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="details-footer">
+          <button class="btn btn-secondary" (click)="closeDetailsModal()">
+            <i class="fas fa-times"></i> Fermer
+          </button>
+          <button class="btn btn-primary" (click)="openEditModal(selectedUserDetails()); closeDetailsModal()">
+            <i class="fas fa-pen"></i> Modifier
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================ -->
+  <!-- MODAL CONFIRMATION STATUT -->
+  <!-- ============================================ -->
+  @if (isStatusConfirmModalOpen()) {
+    <div class="modal-overlay" (click)="closeStatusConfirmModal()"></div>
+    <div class="modal confirm-modal">
+      <div class="modal-container confirm-container">
+        <div class="confirm-icon" [ngClass]="selectedUser()?.statut === 'actif' ? 'warning' : 'success'">
+          <i class="fas"
+             [class.fa-pause-circle]="selectedUser()?.statut === 'actif'"
+             [class.fa-play-circle]="selectedUser()?.statut !== 'actif'"></i>
+        </div>
+        <div class="confirm-header">
+          <h2>
+            {{ selectedUser()?.statut === 'actif' ? 'Désactiver' : 'Activer' }} l'utilisateur
+          </h2>
+          <button class="close-btn" (click)="closeStatusConfirmModal()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="confirm-body">
+          <p class="confirm-question">{{ getStatusConfirmMessage() }}</p>
+
+          <div class="user-preview">
+            <div class="preview-avatar">
+              <img [src]="getAvatarUrl(selectedUser())" [alt]="selectedUser()?.prenom + ' ' + selectedUser()?.nom" />
+            </div>
+            <div class="preview-info">
+              <strong>{{ selectedUser()?.prenom }} {{ selectedUser()?.nom }}</strong>
+              <span>{{ selectedUser()?.email }}</span>
+            </div>
+          </div>
+
+          @if (selectedUser()?.profil === 'superadmin' && selectedUser()?.statut === 'actif') {
+            <div class="warning-box">
+              <i class="fas fa-exclamation-triangle"></i>
+              <span>Impossible de désactiver un superadmin.</span>
+            </div>
+          }
+        </div>
+        <div class="confirm-footer">
+          <button class="btn btn-secondary" (click)="closeStatusConfirmModal()">
+            <i class="fas fa-times"></i> Annuler
+          </button>
+          <button
+            class="btn"
+            [class.btn-danger]="selectedUser()?.statut === 'actif'"
+            [class.btn-primary]="selectedUser()?.statut !== 'actif'"
+            (click)="confirmStatusChange()"
+            [disabled]="selectedUser()?.profil === 'superadmin' && selectedUser()?.statut === 'actif'"
+          >
+            <i class="fas"
+               [class.fa-pause]="selectedUser()?.statut === 'actif'"
+               [class.fa-play]="selectedUser()?.statut !== 'actif'"></i>
+            Confirmer
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

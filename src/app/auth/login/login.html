@@ -1,0 +1,144 @@
+<div class="login-form">
+  <!-- Branding et en-tête -->
+  <div class="login-header">
+    <div class="company-logo">
+      <i class="fas fa-building logo-icon"></i>
+      <span class="company-name">RECLAM</span>
+    </div>
+    <h2 class="welcome-text">Bienvenue</h2>
+    <p class="subtitle-text">Connectez-vous à votre espace professionnel</p>
+  </div>
+
+  <!-- Message d'erreur global -->
+  <div class="alert alert-error" *ngIf="errorMessage()" role="alert">
+    <i class="fas fa-exclamation-triangle alert-icon"></i>
+    <div class="alert-content">
+      <div class="alert-title">ERREUR D'AUTHENTIFICATION</div>
+      <div class="alert-message">{{ errorMessage() }}</div>
+    </div>
+    <button type="button" class="alert-close" (click)="errorMessage.set('')" aria-label="Fermer">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <!-- Message de succès -->
+  <div class="alert alert-success" *ngIf="successMessage()" role="alert">
+    <i class="fas fa-check-circle alert-icon"></i>
+    <div class="alert-content">
+      <div class="alert-title">SUCCÈS</div>
+      <div class="alert-message">{{ successMessage() }}</div>
+    </div>
+  </div>
+
+  <!-- Message de verrouillage -->
+  <div class="alert alert-warning" *ngIf="isLocked()" role="alert">
+    <i class="fas fa-lock alert-icon"></i>
+    <div class="alert-content">
+      <div class="alert-title">COMPTE VERROUILLÉ</div>
+      <div class="alert-message">
+        Trop de tentatives. Réessayez dans {{ lockTimeRemaining() }} secondes.
+      </div>
+    </div>
+  </div>
+
+  <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" autocomplete="off">
+    <!-- Champ Nom d'utilisateur -->
+    <div class="form-group">
+      <div class="input-icon-wrapper" [class.shake]="isFieldInvalid('username')">
+        <i class="fas fa-user icon"></i>
+        <input
+          type="text"
+          id="username"
+          formControlName="username"
+          placeholder="Nom d'utilisateur"
+          [class.error]="isFieldInvalid('username')"
+          autocomplete="username"
+          aria-label="Nom d'utilisateur"
+          [attr.aria-invalid]="isFieldInvalid('username')"
+        >
+      </div>
+      <div class="error-message" *ngIf="isFieldInvalid('username')" role="alert">
+        <i class="fas fa-exclamation-circle"></i>
+        <span *ngIf="loginForm.get('username')?.errors?.['required']">
+          Le nom d'utilisateur est requis
+        </span>
+        <span *ngIf="loginForm.get('username')?.errors?.['apiError']">
+          {{ loginForm.get('username')?.errors?.['apiError'] }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Champ Mot de passe -->
+    <div class="form-group">
+      <div class="input-icon-wrapper" [class.shake]="isFieldInvalid('password')">
+        <i class="fas fa-lock icon"></i>
+        <input
+          [type]="showPassword() ? 'text' : 'password'"
+          id="password"
+          formControlName="password"
+          placeholder="Mot de passe"
+          [class.error]="isFieldInvalid('password')"
+          autocomplete="current-password"
+          aria-label="Mot de passe"
+          [attr.aria-invalid]="isFieldInvalid('password')"
+        >
+        <button
+          type="button"
+          class="toggle-password"
+          (click)="togglePasswordVisibility()"
+          [attr.aria-label]="showPassword() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
+          [title]="showPassword() ? 'Masquer' : 'Afficher'"
+        >
+          <i class="fas" [class.fa-eye]="showPassword()" [class.fa-eye-slash]="!showPassword()"></i>
+        </button>
+      </div>
+      <div class="error-message" *ngIf="isFieldInvalid('password')" role="alert">
+        <i class="fas fa-exclamation-circle"></i>
+        <span *ngIf="loginForm.get('password')?.errors?.['required']">
+          Le mot de passe est requis
+        </span>
+        <span *ngIf="loginForm.get('password')?.errors?.['minlength']">
+          Minimum 6 caractères
+        </span>
+        <span *ngIf="loginForm.get('password')?.errors?.['apiError']">
+          {{ loginForm.get('password')?.errors?.['apiError'] }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Options de connexion -->
+    <div class="form-options">
+      <label class="remember-me">
+        <input type="checkbox" formControlName="rememberMe">
+        <span>Se souvenir de moi</span>
+      </label>
+      <a routerLink="/forgot-password" class="forgot-password">
+        <i class="fas fa-key"></i> Mot de passe oublié ?
+      </a>
+    </div>
+
+    <!-- Bouton de connexion -->
+    <button
+      type="submit"
+      class="btn-login"
+      [disabled]="loginForm.invalid || isLoading() || isLocked()"
+      [attr.aria-busy]="isLoading()"
+    >
+      <i class="fas fa-sign-in-alt" *ngIf="!isLoading()"></i>
+      <span *ngIf="!isLoading()">Se connecter</span>
+      <i class="fas fa-spinner fa-spin" *ngIf="isLoading()"></i>
+      <span *ngIf="isLoading()">Connexion en cours...</span>
+    </button>
+  </form>
+
+  <!-- Informations système -->
+  <div class="system-info">
+    <i class="fas fa-shield-alt"></i>
+    <span>Connexion sécurisée</span>
+    <span class="dot-separator">•</span>
+    <i class="fas fa-lock"></i>
+    <span>Chiffrement SSL</span>
+    <span class="dot-separator">•</span>
+    <span>Version 2.1.0</span>
+  </div>
+</div>

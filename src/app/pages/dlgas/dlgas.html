@@ -1,0 +1,706 @@
+<div class="dlgas-container">
+  <!-- En-tête -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">
+        <i class="fas fa-handshake title-icon"></i>
+        Gestion des DLGAS
+      </h1>
+    </div>
+    <div class="header-actions">
+      <div class="dropdown">
+        <button class="btn-export" (click)="toggleExportMenu()">
+          <i class="fas fa-file-export"></i> Exporter
+          <i class="fas fa-chevron-down dropdown-arrow"></i>
+        </button>
+        <div class="dropdown-menu" *ngIf="showExportMenu()">
+          <button class="dropdown-item" (click)="exportData('excel')">
+            <i class="fas fa-file-excel"></i> Excel
+          </button>
+          <button class="dropdown-item" (click)="exportData('pdf')">
+            <i class="fas fa-file-pdf"></i> PDF
+          </button>
+          <button class="dropdown-item" (click)="exportData('csv')">
+            <i class="fas fa-file-csv"></i> CSV
+          </button>
+        </div>
+      </div>
+      <button class="btn-print" (click)="printPage()">
+        <i class="fas fa-print"></i> Imprimer
+      </button>
+      <button *ngIf="isSuperAdmin()" class="btn-primary" (click)="openAddModal()">
+        <i class="fas fa-user-plus"></i> Nouveau DLGAS
+      </button>
+    </div>
+  </div>
+
+  <!-- Statistiques -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon" style="background: rgba(0, 102, 179, 0.08); color: #0066b3">
+        <i class="fas fa-ticket-alt"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ ticketsStats().total }}</h3>
+        <p>Tickets assignés</p>
+        <span class="trend positive"><i class="fas fa-arrow-up"></i> {{ ticketsStats().nouveaux }} nouveaux</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background: rgba(243, 156, 18, 0.08); color: #f39c12">
+        <i class="fas fa-sync-alt"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ ticketsStats().en_cours }}</h3>
+        <p>En cours</p>
+        <span class="trend">{{ ticketsStats().en_cours_pourcentage }}%</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background: rgba(46, 204, 113, 0.08); color: #2ecc71">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ ticketsStats().resolus }}</h3>
+        <p>Résolus</p>
+        <span class="trend positive"><i class="fas fa-arrow-up"></i> {{ ticketsStats().resolus_pourcentage }}%</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background: rgba(231, 76, 60, 0.08); color: #e74c3c">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ ticketsStats().haute_priorite }}</h3>
+        <p>Haute priorité</p>
+        <span class="trend negative"><i class="fas fa-arrow-down"></i> {{ ticketsStats().haute_priorite_pourcentage }}%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="filters-section">
+    <div class="search-bar">
+      <i class="fas fa-search search-icon"></i>
+      <input
+        type="text"
+        placeholder="Rechercher un ticket (ID, titre, DLGAS...)"
+        (input)="onSearch($event)"
+        [value]="searchQuery()"
+      />
+      <button *ngIf="searchQuery()" class="clear-search" (click)="clearFilters()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="filters-row">
+      <div class="filter-group">
+        <label><i class="fas fa-circle"></i> Statut</label>
+        <select (change)="setFilterStatut($any($event.target).value)" [value]="filterStatut()">
+          <option *ngFor="let s of statuts" [value]="s.value">{{ s.label }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label><i class="fas fa-flag"></i> Priorité</label>
+        <select (change)="setFilterPriorite($any($event.target).value)" [value]="filterPriorite()">
+          <option *ngFor="let p of priorites" [value]="p.value">{{ p.label }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group" *ngIf="showDlgasFilter()">
+        <label><i class="fas fa-user-tie"></i> DLGAS</label>
+        <select (change)="setFilterDlgasId(+$any($event.target).value)" [value]="filterDlgasId()">
+          <option value="0"><i class="fas fa-users"></i> Tous les DLGAS</option>
+          <option *ngFor="let dlgas of dlgas()" [value]="dlgas.id">{{ dlgas.nom }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group filter-mes-tickets" *ngIf="isDlgas()">
+        <label>&nbsp;</label>
+        <button class="btn-mes-tickets" [class.active]="filterMesTickets()" (click)="toggleMesTickets()">
+          <i class="fas fa-user"></i>
+          {{ filterMesTickets() ? 'Tous les tickets' : 'Mes tickets assignés' }}
+          <span class="badge" *ngIf="!filterMesTickets()">{{ mesTicketsCount() }}</span>
+        </button>
+      </div>
+
+      <div class="view-toggle">
+        <button class="toggle-btn" [class.active]="viewMode() === 'list'" (click)="viewMode.set('list')">
+          <i class="fas fa-list"></i> Liste
+        </button>
+        <button class="toggle-btn" [class.active]="viewMode() === 'grid'" (click)="viewMode.set('grid')">
+          <i class="fas fa-th-large"></i> Cartes
+        </button>
+      </div>
+    </div>
+
+    <div class="filter-stats" *ngIf="!isLoading()">
+      <span class="results-count">
+        <i class="fas fa-ticket-alt"></i> {{ filteredTickets().length }} résultat{{ filteredTickets().length > 1 ? 's' : '' }}
+      </span>
+      <button
+        *ngIf="
+          searchQuery() ||
+          filterStatut() !== 'tous' ||
+          filterPriorite() !== 'toutes' ||
+          filterDlgasId() !== 0
+        "
+        class="clear-filters"
+        (click)="clearFilters()"
+      >
+        <i class="fas fa-eraser"></i> Effacer les filtres
+      </button>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination-advanced" *ngIf="!isLoading() && filteredTickets().length > 0">
+    <div class="pagination-info">
+      <div class="items-per-page">
+        <label for="itemsPerPage"><i class="fas fa-list-ul"></i> Afficher</label>
+        <select id="itemsPerPage" (change)="changeItemsPerPage($event)" [value]="itemsPerPage()">
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        <span>par page</span>
+      </div>
+      <span class="pagination-total">
+        <i class="fas fa-ticket-alt"></i> {{ totalTickets() }} ticket{{ totalTickets() > 1 ? 's' : '' }} au total
+      </span>
+    </div>
+
+    <div class="pagination-controls" *ngIf="totalPages() > 1">
+      <button class="page-nav-btn" (click)="goToFirstPage()" [disabled]="currentPage() === 1" title="Première page">
+        <i class="fas fa-step-backward"></i>
+      </button>
+      <button class="page-nav-btn" (click)="changePage(currentPage() - 1)" [disabled]="currentPage() === 1" title="Page précédente">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <div class="page-numbers">
+        <ng-container *ngFor="let page of pageNumbers()">
+          <button class="page-number" [class.active]="page === currentPage()" [class.dots]="page === '...'" (click)="onPageClick(page)" [disabled]="page === '...'">
+            {{ page }}
+          </button>
+        </ng-container>
+      </div>
+      <button class="page-nav-btn" (click)="changePage(currentPage() + 1)" [disabled]="currentPage() === totalPages()" title="Page suivante">
+        <i class="fas fa-chevron-right"></i>
+      </button>
+      <button class="page-nav-btn" (click)="goToLastPage()" [disabled]="currentPage() === totalPages()" title="Dernière page">
+        <i class="fas fa-step-forward"></i>
+      </button>
+    </div>
+
+    <div class="single-page-message" *ngIf="totalPages() === 1">
+      <span class="page-info"><i class="fas fa-check-circle"></i> Page 1 sur 1</span>
+    </div>
+  </div>
+
+  <!-- VUE LISTE -->
+  <div class="list-view" *ngIf="viewMode() === 'list' && !isLoading()">
+    <div class="table-container">
+      <table class="tickets-table">
+        <thead>
+          <tr>
+            <th (click)="sortBy('num_ticket')" class="sortable">
+              N° Ticket <i class="fas" [class.fa-sort]="sortField() !== 'num_ticket'" [class.fa-sort-up]="sortField() === 'num_ticket' && sortDirection() === 'asc'" [class.fa-sort-down]="sortField() === 'num_ticket' && sortDirection() === 'desc'"></i>
+            </th>
+            <th (click)="sortBy('type')" class="sortable">
+              Type <i class="fas" [class.fa-sort]="sortField() !== 'type'" [class.fa-sort-up]="sortField() === 'type' && sortDirection() === 'asc'" [class.fa-sort-down]="sortField() === 'type' && sortDirection() === 'desc'"></i>
+            </th>
+            <th (click)="sortBy('statut')" class="sortable">
+              Statut <i class="fas" [class.fa-sort]="sortField() !== 'statut'" [class.fa-sort-up]="sortField() === 'statut' && sortDirection() === 'asc'" [class.fa-sort-down]="sortField() === 'statut' && sortDirection() === 'desc'"></i>
+            </th>
+            <th (click)="sortBy('priorite')" class="sortable">
+              Priorité <i class="fas" [class.fa-sort]="sortField() !== 'priorite'" [class.fa-sort-up]="sortField() === 'priorite' && sortDirection() === 'asc'" [class.fa-sort-down]="sortField() === 'priorite' && sortDirection() === 'desc'"></i>
+            </th>
+            <th (click)="sortBy('categorie')" class="sortable">
+              Catégorie <i class="fas" [class.fa-sort]="sortField() !== 'categorie'" [class.fa-sort-up]="sortField() === 'categorie' && sortDirection() === 'asc'" [class.fa-sort-down]="sortField() === 'categorie' && sortDirection() === 'desc'"></i>
+            </th>
+            <th (click)="sortBy('demandeur')" class="sortable">
+              Demandeur <i class="fas" [class.fa-sort]="sortField() !== 'demandeur'" [class.fa-sort-up]="sortField() === 'demandeur' && sortDirection() === 'asc'" [class.fa-sort-down]="sortField() === 'demandeur' && sortDirection() === 'desc'"></i>
+            </th>
+            <th (click)="sortBy('dlgas_nom')" class="sortable">
+              DLGAS <i class="fas" [class.fa-sort]="sortField() !== 'dlgas_nom'" [class.fa-sort-up]="sortField() === 'dlgas_nom' && sortDirection() === 'asc'" [class.fa-sort-down]="sortField() === 'dlgas_nom' && sortDirection() === 'desc'"></i>
+            </th>
+            <th (click)="sortBy('sla')" class="sortable">
+              SLA <i class="fas" [class.fa-sort]="sortField() !== 'sla'" [class.fa-sort-up]="sortField() === 'sla' && sortDirection() === 'asc'" [class.fa-sort-down]="sortField() === 'sla' && sortDirection() === 'desc'"></i>
+            </th>
+            <th (click)="sortBy('date_creation')" class="sortable">
+              Date <i class="fas" [class.fa-sort]="sortField() !== 'date_creation'" [class.fa-sort-up]="sortField() === 'date_creation' && sortDirection() === 'asc'" [class.fa-sort-down]="sortField() === 'date_creation' && sortDirection() === 'desc'"></i>
+            </th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let ticket of currentPageItems">
+            <td class="ticket-numero">
+              <span class="ticket-numero-badge">{{ ticket.num_ticket || '#' + ticket.id }}</span>
+            </td>
+            <td>
+              <span class="type-badge" [ngClass]="'type-' + ticket.type">
+                <i class="fas" [class.fa-pen]="ticket.type === 'declaration'" [class.fa-exclamation-circle]="ticket.type === 'reclamation'"></i>
+                {{ ticket.type === 'declaration' ? 'Déclaration' : 'Réclamation' }}
+              </span>
+            </td>
+            <td>
+              <span class="statut-badge" [ngClass]="getStatutClass(ticket.statut)">
+                <i class="fas" [class.fa-circle]="ticket.statut === 'nouveau'" [class.fa-sync-alt]="ticket.statut === 'en_cours'" [class.fa-check-circle]="ticket.statut === 'resolu'" [class.fa-times-circle]="ticket.statut === 'clos'"></i>
+                {{ ticket.statut }}
+              </span>
+            </td>
+            <td>
+              <span class="priorite-badge" [ngClass]="getPrioriteClass(ticket.priorite)">
+                <i class="fas" [class.fa-flag]="ticket.priorite === 'haute'" [class.fa-flag]="ticket.priorite === 'moyenne'" [class.fa-flag-checkered]="ticket.priorite === 'basse'"></i>
+                {{ ticket.priorite }}
+              </span>
+            </td>
+            <td>
+              <span class="categorie-badge"><i class="fas fa-folder"></i> {{ ticket.categorie || 'Non spécifié' }}</span>
+            </td>
+            <td>
+              <div class="demandeur-info">
+                <strong>{{ ticket.prenom || '' }} {{ ticket.nom || '' }}</strong>
+                <small class="demandeur-email" *ngIf="ticket.email"><i class="fas fa-envelope"></i> {{ ticket.email }}</small>
+              </div>
+            </td>
+            <td>
+              <div class="dlgas-info">
+                <span class="dlgas-badge" [class.unassigned]="!ticket.dlgas_nom || ticket.dlgas_nom === 'Non assigné'">
+                  <i class="fas fa-user-tie"></i> {{ ticket.dlgas_nom || 'Non assigné' }}
+                </span>
+              </div>
+            </td>
+            <td class="sla-cell">
+              <div *ngIf="isSlaDemarre(ticket); else slaNonDemarre">
+                <div class="sla-container" [attr.data-pourcentage]="calculateSlaPercentage(ticket)" [attr.data-priorite]="ticket.priorite">
+                  <div class="sla-bar">
+                    <div class="sla-progress" [ngClass]="getSlaClass(ticket)" [style.width.%]="calculateSlaPercentage(ticket)"></div>
+                  </div>
+                  <div class="sla-info">
+                    <span class="sla-temps-restant"><i class="far fa-clock"></i> {{ getTempsRestant(ticket) }}</span>
+                    <span class="sla-pourcentage">{{ calculateSlaPercentage(ticket) }}%</span>
+                  </div>
+                </div>
+              </div>
+              <ng-template #slaNonDemarre>
+                <div class="sla-non-demarre-container">
+                  <span class="sla-non-demarre-badge"><i class="fas fa-pause-circle"></i> Non démarré</span>
+                </div>
+              </ng-template>
+            </td>
+            <td>
+              <div class="date-info">
+                <i class="far fa-calendar-alt"></i> {{ formatShortDate(ticket.date_creation) }}
+              </div>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button class="action-btn view" (click)="openTicketDetails(ticket)" title="Voir les détails">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button *ngIf="canEditTicketWithService(ticket)" class="action-btn edit" (click)="goToEditTicketDlgas(ticket)" [disabled]="!ticket?.id" title="Modifier">
+                  <i class="fas fa-edit"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="filteredTickets().length === 0">
+            <td colspan="10" class="no-data">
+              <div class="empty-state">
+                <i class="fas fa-ticket-alt empty-icon"></i>
+                <h3>Aucun ticket trouvé</h3>
+                <p>Aucun ticket ne correspond à vos critères de recherche</p>
+                <button class="btn-primary" (click)="clearFilters()">
+                  <i class="fas fa-eraser"></i> Effacer les filtres
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- VUE GRILLE -->
+  <div class="grid-view" *ngIf="viewMode() === 'grid' && !isLoading()">
+    <div class="tickets-grid">
+      <div class="ticket-card" *ngFor="let ticket of currentPageItems">
+        <div class="card-header" [ngClass]="getPrioriteClass(ticket.priorite)">
+          <span class="ticket-id"><i class="fas fa-hashtag"></i> {{ ticket.num_ticket || '#' + ticket.id }}</span>
+          <div class="card-actions">
+            <button class="card-action-btn" (click)="openTicketDetails(ticket)" title="Voir les détails">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">{{ ticket.titre || ticket.type || 'Ticket' }}</div>
+          <div class="card-categorie"><i class="fas fa-folder"></i> {{ ticket.categorie || 'Non spécifié' }}</div>
+          <div class="card-badges">
+            <span class="statut-badge" [ngClass]="getStatutClass(ticket.statut)">
+              <i class="fas" [class.fa-circle]="ticket.statut === 'nouveau'" [class.fa-sync-alt]="ticket.statut === 'en_cours'" [class.fa-check-circle]="ticket.statut === 'resolu'" [class.fa-times-circle]="ticket.statut === 'clos'"></i>
+              {{ ticket.statut }}
+            </span>
+            <span class="dlgas-badge" [class.unassigned]="!ticket.dlgas_nom">
+              <i class="fas fa-user-tie"></i> {{ ticket.dlgas_nom || 'Non assigné' }}
+            </span>
+          </div>
+          <div class="card-details">
+            <div class="detail-item">
+              <i class="fas fa-user detail-icon"></i>
+              <span class="detail-text">{{ ticket.prenom || '' }} {{ ticket.nom || '' }}</span>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-calendar-alt detail-icon"></i>
+              <span class="detail-text">{{ formatShortDate(ticket.date_creation) }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button class="btn-assign" (click)="openTicketDetails(ticket)">
+            <i class="fas fa-eye"></i> Voir les détails
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DÉTAILS TICKET -->
+  <div class="modal ticket-details-modal" *ngIf="showDetailsModal()" (click)="closeDetailsModal()">
+    <div class="modal-overlay" (click)="$event.stopPropagation()"></div>
+    <div class="modal-container" style="max-width: 700px" (click)="$event.stopPropagation()">
+      <div class="modal-header" style="border-bottom-color: #0066b3">
+        <h2 style="color: #0066b3">
+          <i class="fas fa-ticket-alt"></i> Détails du ticket
+          <span class="ticket-header-number">#{{ selectedTicketDetails()?.id }}</span>
+        </h2>
+        <button class="modal-close" (click)="closeDetailsModal()"><i class="fas fa-times"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <div *ngIf="isLoadingDetails()" class="ticket-details-loading">
+          <div class="ticket-details-spinner"></div>
+          <p>Chargement des détails...</p>
+        </div>
+
+        <div *ngIf="!isLoadingDetails() && selectedTicketDetails()" class="details-container">
+          <!-- En-tête -->
+          <div class="ticket-details-header">
+            <div class="ticket-details-icon"><i class="fas fa-ticket-alt"></i></div>
+            <div class="ticket-details-title">
+              <h3>{{ selectedTicketDetails()?.titre || selectedTicketDetails()?.type || 'Ticket' }}</h3>
+              <p class="ticket-details-id">
+                <i class="fas fa-hashtag"></i> Ticket #{{ selectedTicketDetails()?.id }}
+              </p>
+            </div>
+            <div class="ticket-details-badges">
+              <span class="ticket-details-badge statut" [ngClass]="getStatutClass(selectedTicketDetails()?.statut)">
+                <i class="fas" [class.fa-circle]="selectedTicketDetails()?.statut === 'nouveau'" [class.fa-sync-alt]="selectedTicketDetails()?.statut === 'en_cours'" [class.fa-check-circle]="selectedTicketDetails()?.statut === 'resolu'" [class.fa-times-circle]="selectedTicketDetails()?.statut === 'clos'"></i>
+                {{ selectedTicketDetails()?.statut }}
+              </span>
+              <span class="ticket-details-badge priorite" [ngClass]="getPrioriteClass(selectedTicketDetails()?.priorite)">
+                <i class="fas" [class.fa-flag]="selectedTicketDetails()?.priorite === 'haute'" [class.fa-flag]="selectedTicketDetails()?.priorite === 'moyenne'" [class.fa-flag-checkered]="selectedTicketDetails()?.priorite === 'basse'"></i>
+                {{ selectedTicketDetails()?.priorite }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Informations générales -->
+          <div class="ticket-details-section">
+            <div class="ticket-details-section-header">
+              <h4><i class="fas fa-info-circle"></i> Informations générales</h4>
+            </div>
+            <div class="ticket-details-section-content">
+              <div class="ticket-details-grid">
+                <div class="ticket-details-item">
+                  <span class="ticket-details-item-label"><i class="fas fa-tag"></i> Type</span>
+                  <span class="ticket-details-item-value">{{ selectedTicketDetails()?.type || 'Non spécifié' }}</span>
+                </div>
+                <div class="ticket-details-item">
+                  <span class="ticket-details-item-label"><i class="fas fa-folder"></i> Catégorie</span>
+                  <span class="ticket-details-item-value">{{ selectedTicketDetails()?.categorie || 'Non spécifié' }}</span>
+                </div>
+                <div class="ticket-details-item">
+                  <span class="ticket-details-item-label"><i class="fas fa-user"></i> Créé par</span>
+                  <span class="ticket-details-item-value">{{ selectedTicketDetails()?.createur_nom || 'Inconnu' }}</span>
+                </div>
+                <div class="ticket-details-item">
+                  <span class="ticket-details-item-label"><i class="fas fa-calendar-plus"></i> Date création</span>
+                  <span class="ticket-details-item-value">{{ formatShortDate(selectedTicketDetails()?.date_creation) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="ticket-details-section">
+            <div class="ticket-details-section-header">
+              <h4><i class="fas fa-align-left"></i> Description</h4>
+            </div>
+            <div class="ticket-details-section-content">
+              <div class="ticket-details-card">
+                <p class="ticket-details-description">
+                  {{ selectedTicketDetails()?.description || selectedTicketDetails()?.detail || 'Aucune description' }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Localisation -->
+          <div class="ticket-details-section">
+            <div class="ticket-details-section-header">
+              <h4><i class="fas fa-map-marker-alt"></i> Localisation</h4>
+            </div>
+            <div class="ticket-details-section-content">
+              <div class="ticket-details-grid">
+                <div class="ticket-details-item" *ngIf="selectedTicketDetails()?.entite_nom">
+                  <span class="ticket-details-item-label"><i class="fas fa-building"></i> Entité</span>
+                  <span class="ticket-details-item-value">{{ selectedTicketDetails()?.entite_nom }}</span>
+                </div>
+                <div class="ticket-details-item" *ngIf="!selectedTicketDetails()?.entite_nom">
+                  <span class="ticket-details-item-label"><i class="fas fa-building"></i> Entité</span>
+                  <span class="ticket-details-item-value ticket-details-value-empty">Non spécifié</span>
+                </div>
+                <div class="ticket-details-item" *ngIf="selectedTicketDetails()?.element_nom">
+                  <span class="ticket-details-item-label"><i class="fas fa-map-pin"></i> Élément</span>
+                  <span class="ticket-details-item-value">{{ selectedTicketDetails()?.element_nom }}</span>
+                </div>
+                <div class="ticket-details-item" *ngIf="!selectedTicketDetails()?.element_nom">
+                  <span class="ticket-details-item-label"><i class="fas fa-map-pin"></i> Élément</span>
+                  <span class="ticket-details-item-value ticket-details-value-empty">Non spécifié</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Demandeur -->
+          <div class="ticket-details-section">
+            <div class="ticket-details-section-header">
+              <h4><i class="fas fa-user"></i> Demandeur</h4>
+            </div>
+            <div class="ticket-details-section-content">
+              <div class="ticket-details-card">
+                <div class="ticket-details-grid">
+                  <div class="ticket-details-item">
+                    <span class="ticket-details-item-label"><i class="fas fa-user"></i> Nom complet</span>
+                    <span class="ticket-details-item-value">{{ selectedTicketDetails()?.prenom || 'Non renseigné' }} {{ selectedTicketDetails()?.nom || '' }}</span>
+                  </div>
+                  <div class="ticket-details-item">
+                    <span class="ticket-details-item-label"><i class="fas fa-envelope"></i> Email</span>
+                    <span class="ticket-details-item-value">{{ selectedTicketDetails()?.email || 'Non renseigné' }}</span>
+                  </div>
+                  <div class="ticket-details-item">
+                    <span class="ticket-details-item-label"><i class="fas fa-phone"></i> Téléphone</span>
+                    <span class="ticket-details-item-value">{{ selectedTicketDetails()?.telephone || 'Non renseigné' }}</span>
+                  </div>
+                  <div class="ticket-details-item" *ngIf="selectedTicketDetails()?.adresse">
+                    <span class="ticket-details-item-label"><i class="fas fa-map-marker-alt"></i> Adresse</span>
+                    <span class="ticket-details-item-value">{{ selectedTicketDetails()?.adresse }}</span>
+                  </div>
+                  <div class="ticket-details-item" *ngIf="selectedTicketDetails()?.source_demande">
+                    <span class="ticket-details-item-label"><i class="fas fa-info-circle"></i> Source</span>
+                    <span class="ticket-details-item-value">{{ selectedTicketDetails()?.source_demande }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DLGAS assigné -->
+          <div class="ticket-details-section">
+            <div class="ticket-details-section-header">
+              <h4><i class="fas fa-user-tie"></i> DLGAS assigné</h4>
+            </div>
+            <div class="ticket-details-section-content">
+              <div class="ticket-details-item">
+                <span class="ticket-details-item-label"><i class="fas fa-user-tie"></i> DLGAS</span>
+                <span class="ticket-details-item-value highlight">{{ selectedTicketDetails()?.dlgas_nom || 'Non assigné' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLA -->
+          <div class="ticket-details-section" *ngIf="selectedTicketDetails()?.sla_ttr">
+            <div class="ticket-details-section-header">
+              <h4><i class="fas fa-clock"></i> SLA</h4>
+            </div>
+            <div class="ticket-details-section-content">
+              <div class="ticket-details-sla">
+                <span class="ticket-details-sla-icon"><i class="fas fa-hourglass-half"></i></span>
+                <div class="ticket-details-sla-info">
+                  <span class="ticket-details-sla-label">Temps de résolution</span>
+                  <span class="ticket-details-sla-value">{{ selectedTicketDetails()?.sla_ttr }} <span class="ticket-details-sla-unit">heures</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticket-details-footer">
+        <button class="btn-secondary" (click)="closeDetailsModal()">
+          <i class="fas fa-times"></i> Fermer
+        </button>
+        <button *ngIf="canEditTicketWithService(selectedTicketDetails())" class="btn-primary" (click)="goToEditTicketDlgas(selectedTicketDetails()); closeDetailsModal()">
+          <i class="fas fa-edit"></i> Modifier
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL AJOUT/MODIFICATION DLGAS -->
+  <div class="modal" *ngIf="isModalOpen()">
+    <div class="modal-overlay" (click)="closeModal()"></div>
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2><i class="fas" [class.fa-user-plus]="modalMode() === 'add'" [class.fa-edit]="modalMode() === 'edit'"></i> {{ modalTitle() }}</h2>
+        <button class="modal-close" (click)="closeModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+  <form [formGroup]="dlgasForm" (ngSubmit)="saveDlgas()">
+    <div class="form-row">
+      <div class="form-group">
+        <label><i class="fas fa-user"></i> Nom <span class="required">*</span></label>
+        <input type="text" formControlName="nom" placeholder="Nom" />
+        <div class="error-message" *ngIf="dlgasForm.get('nom')?.invalid && dlgasForm.get('nom')?.touched">
+          <i class="fas fa-exclamation-circle"></i>
+          <span *ngIf="dlgasForm.get('nom')?.errors?.['required']">Le nom est requis</span>
+          <span *ngIf="dlgasForm.get('nom')?.errors?.['minlength']">Minimum 2 caractères</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-user"></i> Prénom <span class="required">*</span></label>
+        <input type="text" formControlName="prenom" placeholder="Prénom" />
+        <div class="error-message" *ngIf="dlgasForm.get('prenom')?.invalid && dlgasForm.get('prenom')?.touched">
+          <i class="fas fa-exclamation-circle"></i>
+          <span *ngIf="dlgasForm.get('prenom')?.errors?.['required']">Le prénom est requis</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label><i class="fas fa-envelope"></i> Email <span class="required">*</span></label>
+        <input type="email" formControlName="email" placeholder="email@exemple.com" />
+        <div class="error-message" *ngIf="dlgasForm.get('email')?.invalid && dlgasForm.get('email')?.touched">
+          <i class="fas fa-exclamation-circle"></i>
+          <span *ngIf="dlgasForm.get('email')?.errors?.['required']">L'email est requis</span>
+          <span *ngIf="dlgasForm.get('email')?.errors?.['email']">Email invalide</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-phone"></i> Téléphone <span class="required">*</span></label>
+        <input type="tel" formControlName="telephone" placeholder="77 123 45 67" />
+        <div class="error-message" *ngIf="dlgasForm.get('telephone')?.invalid && dlgasForm.get('telephone')?.touched">
+          <i class="fas fa-exclamation-circle"></i>
+          <span *ngIf="dlgasForm.get('telephone')?.errors?.['pattern']">Chiffres uniquement</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ PAS de champ Entité -->
+
+    <div class="form-row">
+      <div class="form-group full-width">
+        <label><i class="fas fa-map-marker-alt"></i> Adresse</label>
+        <input type="text" formControlName="adresse" placeholder="Adresse" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group full-width">
+        <label><i class="fas fa-align-left"></i> Description</label>
+        <textarea formControlName="description" rows="3" placeholder="Description"></textarea>
+      </div>
+    </div>
+
+    <div class="form-row" *ngIf="modalMode() !== 'add'">
+      <div class="form-group">
+        <label><i class="fas fa-circle"></i> Statut</label>
+        <select formControlName="statut">
+          <option value="actif">Actif</option>
+          <option value="inactif">Inactif</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="error-alert" *ngIf="submitError()">
+      <i class="fas fa-exclamation-triangle alert-icon"></i>
+      <span>{{ submitError() }}</span>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" (click)="closeModal()">
+        <i class="fas fa-times"></i> Annuler
+      </button>
+      <button type="submit" class="btn-primary" [disabled]="dlgasForm.invalid || isSaving()">
+        <span *ngIf="!isSaving()">
+          <i class="fas" [class.fa-plus]="modalMode() === 'add'" [class.fa-save]="modalMode() === 'edit'"></i>
+          {{ modalMode() === 'add' ? 'Ajouter' : 'Modifier' }}
+        </span>
+        <span *ngIf="isSaving()">
+          <i class="fas fa-spinner fa-spin"></i>
+          {{ modalMode() === 'add' ? 'Ajout...' : 'Modification...' }}
+        </span>
+      </button>
+    </div>
+  </form>
+</div>
+    </div>
+  </div>
+
+  <!-- MODAL SUPPRESSION DLGAS -->
+  <div class="modal" *ngIf="isDeleteModalOpen()">
+    <div class="modal-overlay" (click)="closeDeleteModal()"></div>
+    <div class="modal-container modal-sm">
+      <div class="modal-header" style="border-bottom-color: #dc3545">
+        <h2 style="color: #dc3545"><i class="fas fa-trash-alt"></i> Confirmer la suppression</h2>
+        <button class="modal-close" (click)="closeDeleteModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body text-center">
+        <div style="font-size: 48px; margin-bottom: 20px; color: #dc3545">
+          <i class="fas fa-user-slash"></i>
+        </div>
+        <p class="delete-message">
+          Êtes-vous sûr de vouloir supprimer le DLGAS<br />
+          <strong>{{ selectedDlgas()?.prenom }} {{ selectedDlgas()?.nom_famille }}</strong> ?
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeDeleteModal()">
+          <i class="fas fa-times"></i> Annuler
+        </button>
+        <button class="btn-danger" (click)="deleteDlgas()">
+          <i class="fas fa-trash"></i> Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMATION SUCCÈS -->
+  <div class="modal" *ngIf="showSuccessModal()">
+    <div class="modal-overlay" (click)="closeSuccessModal()"></div>
+    <div class="modal-container modal-sm">
+      <div class="modal-header" style="border-bottom-color: #28a745">
+        <h2 style="color: #28a745"><i class="fas fa-check-circle"></i> Succès</h2>
+        <button class="modal-close" (click)="closeSuccessModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body text-center">
+        <div style="font-size: 64px; margin-bottom: 20px; color: #28a745">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <p class="success-message">{{ successMessage() }}</p>
+      </div>
+      <div class="modal-footer" style="justify-content: center">
+        <button class="btn-primary" (click)="closeSuccessModal()">
+          <i class="fas fa-check"></i> OK
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
